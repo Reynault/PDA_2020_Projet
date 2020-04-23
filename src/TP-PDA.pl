@@ -3,18 +3,93 @@
 % ----------------------------------------------------
 
 % ----------------------------------------------------
+% Configuration - Débuggage
+% ----------------------------------------------------
+
+cls :- write('\e[H\e[2J').
+
+set_echo :- assert(echo_on).
+clr_echo :- retractall(echo_on).
+echo(T) :- echo_on, !, write(T).
+echo(_).
+
+:- set_echo.
+
+% ----------------------------------------------------
+% Paramètres utilisés:
+%
+%   - tree  : Tableau qui correspond aux branches réalisées 
+%     C'est un tableau qui contient l'arbre sous la forme de formules et de tableaux.
+%     Sachant que lorsqu'un conflit est détécté, le premier élément du tableau correspondant
+%     à la branche est la constante conflict. 
+%     Avec le tableau principal qui correspond à la branche principale.
+%
+%   - Form      : Une formule du système 
+%     (une formule simple)
+%
+%   - Marked    : Formules déjà développées
+%
+% Notation utilisée:
+%   - conflict : constante qui tagge si une branche a un conflit
+% ----------------------------------------------------
+
+% ----------------------------------------------------
+% Définition des éléments de la logique propositionnelle
+% ----------------------------------------------------
+
+:- op(20,xfy,&)   . % and
+:- op(20,xfy,v)   . % or
+:- op(20,fx ,not) . % not
+:- op(20,xfy,=>)  . % implication
+:- op(20,xfy,<=>) . % equality
+
+% ----------------------------------------------------
 % Implantation de la méthode pour le calcul propositionnel
 % ----------------------------------------------------
 
-
-
 % ----------------------------------------------------
-% Implantation de la méthode pour le calcul des prédicats du premier ordre.
-% ----------------------------------------------------
-
-
-
-% ----------------------------------------------------
-% Prédicats liés à l'éxécution de l'une des deux méthodes
+% Prédicats rules: Permet de vérifier quelle règle appliquer
+% à la formule
 % ----------------------------------------------------
 
+rule(Form, or).
+rule(Form, nor).
+
+rule(Form, and).
+rule(Form, nand).
+
+rule(Form, imp).
+rule(Form, nimp).
+
+% ----------------------------------------------------
+% Prédicats apply: Permet d'appliquer une règle sur une formule
+% ----------------------------------------------------
+
+apply(Form, Branch, or).
+apply(Form, Branch, nor).
+
+apply(Form, Branch, and).
+apply(Form, Branch, nand).
+
+apply(Form, Branch, imp).
+apply(Form, Branch, nimp).
+
+% ----------------------------------------------------
+% Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
+% ----------------------------------------------------
+
+copy([], []).
+copy([H| L], [H| N]) :- copy(L, N).
+
+solve(Tree, Type) :- set_echo,
+    loop(Tree, [], Type), !.
+
+loop(Tree, Marked, propositional) :-
+    close_branches(Tree),
+    verif_branches(Tree).
+
+loop(Tree, Marked, propositional) :-
+    get_form(Tree, Marked, Form, Rule, propositional), !,
+    get_branch(Tree, Form, Branch),
+    apply(Form, Branch, Rule),
+    mark_Form(Form, Marked).
