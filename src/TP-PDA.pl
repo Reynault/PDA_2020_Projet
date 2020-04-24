@@ -85,41 +85,60 @@ copy([H| L], [H| N]) :- copy(L, N).
 % Prédicat de vérification de l'existance d'un conflit dans une branche
 conflict_exists([conflict | _]).
 
+% Prédicat d'ajout d'une formule déjà utilisée dans un tableau de formules marquées
+mark_Form(Form, Marked, New_Marked) :-
+    append(Form, Marked, New_Marked).
+
 % ----------------------------------------------------
 % Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
 % ----------------------------------------------------
 
 solve(Tree, Type) :- set_echo,
-    loop(Tree, [], Type), !.
+    loop(Tree, _, [], _, Type), !.
 
-loop(Tree, Marked, propositional) :-
-    check_tree(Tree),
-    conflict_exists(Tree).
+loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
+    check_tree(Tree, ClosedTree),
+    conflict_exists(ClosedTree).
 
-loop(Tree, Marked, propositional) :-
+loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
     get_form(Tree, Marked, Form, Rule, propositional), !,
     get_branch(Tree, Form, Branch),
     apply(Form, Branch, Rule),
-    mark_Form(Form, Marked).
+    mark_Form(Form, Marked, NewMarked),
+    loop(ClosedTree, _, NewMarked, _, Type).
 
 % ----------------------------------------------------
 % Prédicats qui permettent la fermeture des branches avec conflit
 % ----------------------------------------------------
 
+% Prédicat de parcours de l'arbre
+
+% Cas simple où First est une formule
 check_tree([First | Others]) :-
     \+is_list(First),
     check_branches(Others, First),
-    check_tree(Others),
-    .
+    check_tree(Others).
 
+% Cas dans lequel First est un tableau
 check_tree([First | Others]) :-
     is_list(First),
     First = [First_Branch, Others_Branches],
-    check_tree(First_Branch),
+    check_tree(First_Branch), % Propagation du parcours dans les branches
     check_tree(Others_Branches).
 
-check_branches(Branches, Form):-
-    .
+% Prédicat de parcours des branches à la recherche
+% de la formule opposée
+
+% Cas simple dans lequel le premier élément est une formule
+check_branches([First | Others], Form):- \+is_list(First), First = not Form.
+check_branches([First | Others], Form):- \+is_list(First), Form = not First.
+
+% Cas dans lequel le premier élément est un tableau
+check_branches([First | Others], Form):-
+    is_list(First),
+    First = [First_Branch, Others_Branches],
+    check_branches(First_Branch, Form), % Propagation de la recherche dans les branches
+    check_branches(Others_Branches, Form).
 
 close_branche(Branch, New_Branch) :-
-    New_Branch = [conflict, Branch].
+    append([conflict], Branch, New_Branch).
