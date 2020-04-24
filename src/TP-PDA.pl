@@ -75,21 +75,51 @@ apply(Form, Branch, imp).
 apply(Form, Branch, nimp).
 
 % ----------------------------------------------------
-% Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
+% Prédicats utilitaires
 % ----------------------------------------------------
 
+% Prédicat de copie
 copy([], []).
 copy([H| L], [H| N]) :- copy(L, N).
+
+% Prédicat de vérification de l'existance d'un conflit dans une branche
+conflict_exists([conflict | _]).
+
+% ----------------------------------------------------
+% Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
+% ----------------------------------------------------
 
 solve(Tree, Type) :- set_echo,
     loop(Tree, [], Type), !.
 
 loop(Tree, Marked, propositional) :-
-    close_branches(Tree),
-    verif_branches(Tree).
+    check_tree(Tree),
+    conflict_exists(Tree).
 
 loop(Tree, Marked, propositional) :-
     get_form(Tree, Marked, Form, Rule, propositional), !,
     get_branch(Tree, Form, Branch),
     apply(Form, Branch, Rule),
     mark_Form(Form, Marked).
+
+% ----------------------------------------------------
+% Prédicats qui permettent la fermeture des branches avec conflit
+% ----------------------------------------------------
+
+check_tree([First | Others]) :-
+    \+is_list(First),
+    check_branches(Others, First),
+    check_tree(Others),
+    .
+
+check_tree([First | Others]) :-
+    is_list(First),
+    First = [First_Branch, Others_Branches],
+    check_tree(First_Branch),
+    check_tree(Others_Branches).
+
+check_branches(Branches, Form):-
+    .
+
+close_branche(Branch, New_Branch) :-
+    New_Branch = [conflict, Branch].
