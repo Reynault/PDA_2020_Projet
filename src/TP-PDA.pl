@@ -52,31 +52,46 @@ echo(_).
 % à la formule
 % ----------------------------------------------------
 
-rule(Form, or) :- Form = A v B.
-rule(Form, nor) :- Form = not (A v B).
+rule(Form, A, B, or) :- Form = A v B.
+rule(Form, A, B, nor) :- Form = not (A v B).
 
-rule(Form, and) :- Form = A & B.
-rule(Form, nand) :- Form = not (A & B).
+rule(Form, A, B, and) :- Form = A & B.
+rule(Form, A, B, nand) :- Form = not (A & B).
 
-rule(Form, imp) :- Form = A => B.
-rule(Form, nimp) :- Form = not (A => B).
+rule(Form, A, B, imp) :- Form = A => B.
+rule(Form, A, B, nimp) :- Form = not (A => B).
+
 
 % ----------------------------------------------------
 % Prédicats apply: Permet d'appliquer une règle sur une formule
 % ----------------------------------------------------
 
-apply(Form, Branch, or).
-apply(Form, Branch, nor).
 
-apply(Form, Branch, and).
-apply(Form, Branch, nand).
 
-apply(Form, Branch, imp).
-apply(Form, Branch, nimp).
+%cas simples où la branche ne contient pas de sous branche
+apply(Form, Branch, New_Branch, or) :- no_sub_branch(Branch), rule(Form, F1, F2, or), append(Branch, [[F1]], Branch_Temp), append(Branch_Temp, [[F2]], New_Branch).
+apply(Form, Branch, New_Branch, nor):- no_sub_branch(Branch), rule(Form, F1, F2, nor), append(Branch, [not F1, not F2], New_Branch).
 
+apply(Form, Branch, New_Branch, and):- no_sub_branch(Branch), rule(Form, F1, F2, and), append(Branch, [F1, F2], New_Branch).
+apply(Form, Branch, New_Branch, nand):- no_sub_branch(Branch), rule(Form, F1, F2, nand), append(Branch, [[not F1]], Branch_Temp), append(Branch_Temp, [[not F2]], New_Branch).
+
+apply(Form, Branch, New_Branch, imp):- no_sub_branch(Branch), rule(Form, F1, F2, imp), append(Branch, [[not F1]], Branch_Temp), append(Branch_Temp, [[F2]], New_Branch).
+apply(Form, Branch, New_Branch, nimp):- no_sub_branch(Branch), rule(Form, F1, F2, nimp), append(Branch, [F1, not F2], New_Branch).
+
+%cas où la branche contient des sous branches
+apply(Form, Branch, New_Branch, Rule) :- 
+    \+no_sub_branch(Branch), 
+    rule(Form, F1, F2, Rule), 
+    find_sub_branches(Branch, B1, B2), 
+    apply(Form, B1, NB1, Rule), 
+    apply(Form, B2, NB2, Rule),
+    remove(B1, Branch, Branch_Temp1), remove(B2, Branch_Temp1, Branch_Temp2),
+    append(Branch_Temp2, [NB1], Branch_Temp3), append(Branch_Temp3, [NB2], New_Branch).
 % ----------------------------------------------------
 % Prédicats utilitaires
 % ----------------------------------------------------
+
+
 
 % Prédicat de copie
 copy([], []).
@@ -89,6 +104,33 @@ conflict_exists([conflict | _]).
 mark_Form(Form, Marked, New_Marked) :-
     append(Form, Marked, New_Marked).
 
+% ----------------------------------------------------
+% Prédicat no_sub_branch: rend vrai si la branche n'a pas de sous branche
+% ----------------------------------------------------
+
+no_sub_branch([First|Others]) :- \+is_list(First), no_sub_branch(Others).
+no_sub_branch([]).
+
+% ----------------------------------------------------
+% Prédicat find_sub_branches: rend vrai si B1 et B2 sont les sous Branches de Branch
+% ----------------------------------------------------
+
+find_sub_branches([First|Others], B1, B2) :- is_list(First), B1 = First, find_sub_branches(Others, B2).
+find_sub_branches([First|Others], B1, B2) :- \+is_list(First), find_sub_branches(Others, B1, B2).
+
+
+find_sub_branches([First|Others], B2) :- is_list(First), B2 = First.
+find_sub_branches([First|Others], B2) :- \+is_list(First), find_sub_branches(Others, B2).
+
+
+
+% ----------------------------------------------------
+% Prédicats remove:
+% ----------------------------------------------------
+remove(_, [], []).
+remove(X, [X|Others], R1) :- remove(X, Others, R1).
+remove(X, [Y|Others], R1) :- X \== Y, length(Others, N), N > 0, remove(X, Others, R2), append([Y], R2, R1).
+remove(X, [Y|Others], R1) :- X \== Y, length(Others, 0), R1 = [Y].
 % ----------------------------------------------------
 % Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
 % ----------------------------------------------------
