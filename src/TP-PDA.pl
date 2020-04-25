@@ -52,14 +52,14 @@ echo(_).
 % à la formule
 % ----------------------------------------------------
 
-rule(Form, or).
-rule(Form, nor).
+rule(Form, or) :- Form = A v B.
+rule(Form, nor) :- Form = not (A v B).
 
-rule(Form, and).
-rule(Form, nand).
+rule(Form, and) :- Form = A & B.
+rule(Form, nand) :- Form = not (A & B).
 
-rule(Form, imp).
-rule(Form, nimp).
+rule(Form, imp) :- Form = A => B.
+rule(Form, nimp) :- Form = not (A => B).
 
 % ----------------------------------------------------
 % Prédicats apply: Permet d'appliquer une règle sur une formule
