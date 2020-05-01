@@ -129,6 +129,8 @@ copy([H| L], [H| N]) :- copy(L, N).
 % Cas dans lequel on arrive à la fin d'une branche
 close_conflicts(TreeBeginning, [], ClosedTree).
 
+close_conflicts(TreeBeginning, [], ClosedTree) :- conflict_exists(TreeBeginning).
+
 % Cas dans lequel on se trouve dans une branche sans sous branches
 close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     \+is_list(First),
@@ -183,12 +185,40 @@ check_conflicts([First| Others], Form) :-
 check_conflicts([First| Others], Form) :-
     is_list(First),
     find_sub_branches([First| Others], B1, B2),
+    conflict_exists(B1),
+    conflict_exists(B2).
+
+check_conflicts([First| Others], Form) :-
+    is_list(First),
+    find_sub_branches([First| Others], B1, B2),
+    conflict_exists(B1, Form ),
+    \+conflict_exists(B2, Form),
+    check_conflicts(B2, Form).
+
+check_conflicts([First| Others], Form) :-
+    is_list(First),
+    find_sub_branches([First| Others], B1, B2),
+    \+conflict_exists(B1, Form ),
+    check_conflicts(B1, Form),
+    conflict_exists(B2, Form).
+
+check_conflicts([First| Others], Form) :-
+    is_list(First),
+    find_sub_branches([First| Others], B1, B2),
+    \+conflict_exists(B1, Form),
     check_conflicts(B1, Form ),
+    \+conflict_exists(B2, Form),
     check_conflicts(B2, Form).
 
 % is_conflict permet de vérifier si un conflit existe entre deux formules
 is_conflict(A, B):- \+is_list(A), A = not B.
 is_conflict(A, B):- \+is_list(A), B = not A.
+
+% ----------------------------------------------------
+% Prédicat qui permet de vérifier si une branche possède un conflit
+% ----------------------------------------------------
+
+conflict_exists([conflict| _]).
 
 % ----------------------------------------------------
 % Prédicat de récupération de la formule sur laquelle on veut travailler
