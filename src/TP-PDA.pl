@@ -37,11 +37,11 @@ echo(_).
 % Définition des éléments de la logique propositionnelle
 % ----------------------------------------------------
 
-:- op(20,xfy,&)   . % and
-:- op(20,xfy,v)   . % or
-:- op(20,fx ,not) . % not
-:- op(20,xfy,=>)  . % implication
-:- op(20,xfy,<=>) . % equality
+:- op(1,fx ,not) . % not
+:- op(2,xfy,&)   . % and
+:- op(3,xfy,v)   . % or
+:- op(4,xfy,=>)  . % implication
+:- op(5,xfy,<=>) . % equality
 
 % ----------------------------------------------------
 % Implantation de la méthode pour le calcul propositionnel
@@ -175,12 +175,12 @@ close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
 % toutes les sous-branches)
 check_conflicts([First| Others], Form) :-
     \+is_list(First),
-    is_conflict([First| Others], Form).
+    is_conflict(First, Form).
 
 check_conflicts([First| Others], Form) :-
     \+is_list(First),
-    \+is_conflict([First| Others], Form),
-    close_conflicts(Others, Form).
+    \+is_conflict(First, Form),
+    check_conflicts(Others, Form).
 
 check_conflicts([First| Others], Form) :-
     is_list(First),
@@ -191,23 +191,23 @@ check_conflicts([First| Others], Form) :-
 check_conflicts([First| Others], Form) :-
     is_list(First),
     find_sub_branches([First| Others], B1, B2),
-    conflict_exists(B1, Form ),
-    \+conflict_exists(B2, Form),
+    conflict_exists(B1),
+    \+conflict_exists(B2),
     check_conflicts(B2, Form).
 
 check_conflicts([First| Others], Form) :-
     is_list(First),
     find_sub_branches([First| Others], B1, B2),
-    \+conflict_exists(B1, Form ),
+    \+conflict_exists(B1),
     check_conflicts(B1, Form),
-    conflict_exists(B2, Form).
+    conflict_exists(B2).
 
 check_conflicts([First| Others], Form) :-
     is_list(First),
     find_sub_branches([First| Others], B1, B2),
-    \+conflict_exists(B1, Form),
+    \+conflict_exists(B1),
     check_conflicts(B1, Form ),
-    \+conflict_exists(B2, Form),
+    \+conflict_exists(B2),
     check_conflicts(B2, Form).
 
 % is_conflict permet de vérifier si un conflit existe entre deux formules
