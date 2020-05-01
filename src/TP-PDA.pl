@@ -121,42 +121,92 @@ remove(X, [Y|Others], R1) :- X \== Y, length(Others, 0), R1 = [Y].
 copy([], []).
 copy([H| L], [H| N]) :- copy(L, N).
 
-% Prédicat d'ajout d'une formule déjà utilisée dans un tableau de formules marquées
-mark_Form(Form, Marked, New_Marked) :- append(Form, Marked, New_Marked).
-
 % ----------------------------------------------------
-% Prédicats qui permettent la fermeture des branches avec conflit
+% Prédicats qui permettent de parcourir l'arbre et de fermer les branches
+% qui contiennent un conflit
 % ----------------------------------------------------
 
-% Prédicat de parcours de l'arbre
+% Cas dans lequel on arrive à la fin d'une branche
+close_conflicts(TreeBeginning, [], ClosedTree).
 
-% Cas simple où First est une formule
-check_tree([First | Others]) :- \+is_list(First), check_branches(Others, First), check_tree(Others).
+% Cas dans lequel on se trouve dans une branche sans sous branches
+close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
+    \+is_list(First),
+    no_sub_branch(Others),
+    check_conflicts(Others, First),
+    ClosedTree = [conflict| TreeBeginning].
 
-% Cas dans lequel First est un tableau, propage le parcours dans les branches
-check_tree([First | Others]) :- is_list(First),
-    First = [First_Branch, Others_Branches],
-    check_tree(First_Branch),
-    check_tree(Others_Branches).
+close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
+    \+is_list(First),
+    no_sub_branch(Others),
+    \+check_conflicts(Others, First),
+    close_conflicts(TreeBeginning, Others, ClosedTree).
 
-% Prédicat de parcours des branches à la recherche
-% de la formule opposée
+% Cas dans lequel on se trouve dans une branche avec sous branches
+close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
+    \+is_list(First),
+    \+no_sub_branch(Others),
+    check_conflicts(Others, First),
+    ClosedTree = [conflict| TreeBeginning].
 
-% Cas simple dans lequel le premier élément est une formule
-check_branches([First | Others], Form):- \+is_list(First), First = not Form.
-check_branches([First | Others], Form):- \+is_list(First), Form = not First.
+close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
+    \+is_list(First),
+    \+no_sub_branch(Others),
+    \+check_conflicts(Others, First),
+    close_conflicts(TreeBeginning, Others, ClosedTree).
 
-% Cas dans lequel le premier élément est un tableau, propage le parcours dans les branches
-check_branches([First | Others], Form):-
+close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     is_list(First),
-    First = [First_Branch, Others_Branches],
-    check_branches(First_Branch, Form),
-    check_branches(Others_Branches, Form).
+    find_sub_branches([First| Others], B1, B2),
+    close_conflicts(B1, B1, ClosedB1),
+    close_conflicts(B2, B2, ClosedB2),
+    append([ClosedB1], [ClosedB2], ClosedTree).
 
-close_branche(Branch, New_Branch) :- append([conflict], Branch, New_Branch).
+close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
+    is_list(First),
+    find_sub_branches([First| Others], B1, B2),
+    close_conflicts(B1, B1, ClosedTree),
+    close_conflicts(B2, B2, ClosedTree).
 
-% Prédicat de vérification de l'existance d'un conflit dans une branche
-conflict_exists([conflict | _]).
+
+% check_conflicts permet de vérifier si la branche est à fermer (conflits dans
+% toutes les sous-branches)
+check_conflicts([First| Others], Form) :-
+    \+is_list(First),
+    is_conflict([First| Others], Form).
+
+check_conflicts([First| Others], Form) :-
+    \+is_list(First),
+    \+is_conflict([First| Others], Form),
+    close_conflicts(Others, Form).
+
+check_conflicts([First| Others], Form) :-
+    is_list(First),
+    find_sub_branches([First| Others], B1, B2),
+    check_conflicts(B1, Form ),
+    check_conflicts(B2, Form).
+
+% is_conflict permet de vérifier si un conflit existe entre deux formules
+is_conflict(A, B):- \+is_list(A), A = not B.
+is_conflict(A, B):- \+is_list(A), B = not A.
+
+% ----------------------------------------------------
+% Prédicat de récupération de la formule sur laquelle on veut travailler
+% ----------------------------------------------------
+
+get_form(Tree, Marked, Form, Rule, propositional).
+
+% ----------------------------------------------------
+% Prédicat d'ajout d'une formule déjà utilisée dans un tableau de formules marquées
+% ----------------------------------------------------
+
+get_branch(Tree, Form, Branch).
+
+% ----------------------------------------------------
+% Prédicat d'ajout d'une formule déjà utilisée dans un tableau de formules marquées
+% ----------------------------------------------------
+
+mark_Form(Form, Marked, New_Marked) :- append(Form, Marked, New_Marked).
 
 % ----------------------------------------------------
 % Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
@@ -164,7 +214,8 @@ conflict_exists([conflict | _]).
 
 solve(Tree, Type) :- set_echo, loop(Tree, _, [], _, Type), !.
 
-loop(Tree, ClosedTree, Marked, NewMarked, propositional) :- check_tree(Tree, ClosedTree), conflict_exists(ClosedTree).
+loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
+    check_tree(Tree, ClosedTree), conflict_exists(ClosedTree).
 
 loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
     get_form(Tree, Marked, Form, Rule, propositional), !,
