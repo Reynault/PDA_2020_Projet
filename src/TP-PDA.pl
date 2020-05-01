@@ -224,13 +224,7 @@ conflict_exists([conflict| _]).
 % Prédicat de récupération de la formule sur laquelle on veut travailler
 % ----------------------------------------------------
 
-get_form(Tree, Marked, Form, Rule, propositional).
-
-% ----------------------------------------------------
-% Prédicat d'ajout d'une formule déjà utilisée dans un tableau de formules marquées
-% ----------------------------------------------------
-
-get_branch(Tree, Form, Branch).
+get_form(Tree, Marked, Form, Branch, Rule, propositional).
 
 % ----------------------------------------------------
 % Prédicat d'ajout d'une formule déjà utilisée dans un tableau de formules marquées
@@ -245,11 +239,10 @@ mark_Form(Form, Marked, New_Marked) :- append(Form, Marked, New_Marked).
 solve(Tree, Type) :- set_echo, loop(Tree, _, [], _, Type), !.
 
 loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
-    check_tree(Tree, ClosedTree), conflict_exists(ClosedTree).
+    close_conflicts(Tree, Tree, ClosedTree), conflict_exists(ClosedTree).
 
 loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
-    get_form(Tree, Marked, Form, Rule, propositional), !,
-    get_branch(Tree, Form, Branch),
+    get_form(Tree, Marked, Form, Branch, Rule, propositional), !,
     apply(Form, Branch, Rule),
     mark_Form(Form, Marked, NewMarked),
     loop(ClosedTree, _, NewMarked, _, Type).
