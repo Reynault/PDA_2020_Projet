@@ -17,5 +17,18 @@
 
 :- check_conflicts([a v b, [a, not a, not b], [c, a, not a]],a).
 
+% tests avancés
+:- check_conflicts([a v b, [a, not c, not b, [c, b, not a, a], [b, not a, c]], [c, a, not a]],a).
+
 % tests difficiles
 :- check_conflicts([not a v b],a).
+
+% False
+
+% tests simples
+:- check_conflicts([a v b, a],a).
+
+:- check_conflicts([a v b, [a, c], [b]],a).
+
+% tests avancés
+:- check_conflicts([a v b, [a, [conflict, b], [c]], [b]],a).

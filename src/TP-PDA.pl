@@ -127,9 +127,9 @@ copy([H| L], [H| N]) :- copy(L, N).
 % ----------------------------------------------------
 
 % Cas dans lequel on arrive à la fin d'une branche
-close_conflicts(TreeBeginning, [], ClosedTree).
+close_conflicts(_, [], _).
 
-close_conflicts(TreeBeginning, [], ClosedTree) :- conflict_exists(TreeBeginning).
+close_conflicts(TreeBeginning, [], _) :- conflict_exists(TreeBeginning).
 
 % Cas dans lequel on se trouve dans une branche sans sous branches
 close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
@@ -163,13 +163,6 @@ close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     close_conflicts(B1, B1, ClosedB1),
     close_conflicts(B2, B2, ClosedB2),
     append([ClosedB1], [ClosedB2], ClosedTree).
-
-close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
-    is_list(First),
-    find_sub_branches([First| Others], B1, B2),
-    close_conflicts(B1, B1, ClosedTree),
-    close_conflicts(B2, B2, ClosedTree).
-
 
 % check_conflicts permet de vérifier si la branche est à fermer (conflits dans
 % toutes les sous-branches)
@@ -224,7 +217,27 @@ conflict_exists([conflict| _]).
 % Prédicat de récupération de la formule sur laquelle on veut travailler
 % ----------------------------------------------------
 
-get_form(Tree, Marked, Form, Branch, Rule, propositional).
+get_form([First| Others], TreeBeginning, Marked, Form, Branch, Rule, propositional) :-
+    \+is_list(First),
+    \+member(First, Marked),
+    Branch = TreeBeginning,
+    Form = First,
+    rule(Form, A, B, Rule).
+
+get_form([First| Others], TreeBeginning, Marked, Form, Branch, Rule, propositional) :-
+    \+is_list(First),
+    member(First, Marked),
+    get_form(Others, TreeBeginning, Marked, Form, Branch, Rule, propositional), !.
+
+get_form([First| Others], TreeBeginning, Marked, Form, Branch, Rule, propositional) :-
+    is_list(First),
+    find_sub_branches([First| Others], B1, B2),
+    get_form(B1, B1, Marked, Form, Branch, Rule, propositional), !.
+
+get_form([First| Others], TreeBeginning, Marked, Form, Branch, Rule, propositional) :-
+    is_list(First),
+    find_sub_branches([First| Others], B1, B2),
+    get_form(B2, B2, Marked, Form, Branch, Rule, propositional), !.
 
 % ----------------------------------------------------
 % Prédicat d'ajout d'une formule déjà utilisée dans un tableau de formules marquées
@@ -238,11 +251,15 @@ mark_Form(Form, Marked, New_Marked) :- append(Form, Marked, New_Marked).
 
 solve(Tree, Type) :- set_echo, loop(Tree, _, [], _, Type), !.
 
+% ----------------------------------------------------
+% Prédicats loop pour la logique propositionnelle
+% ----------------------------------------------------
+
 loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
     close_conflicts(Tree, Tree, ClosedTree), conflict_exists(ClosedTree).
 
 loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
-    get_form(Tree, Marked, Form, Branch, Rule, propositional), !,
+    get_form(Tree, Tree, Marked, Form, Branch, Rule, propositional), !,
     apply(Form, Branch, Rule),
     mark_Form(Form, Marked, NewMarked),
     loop(ClosedTree, _, NewMarked, _, Type).
