@@ -156,11 +156,43 @@ remove(X, [Y|Others], R1) :- X \== Y, length(Others, 0), R1 = [Y].
 % Prédicats utilitaires
 % ----------------------------------------------------
 
-
+isEmpty([]).
 
 % Prédicat de copie
 copy([], []).
 copy([H| L], [H| N]) :- copy(L, N).
+
+%cas ou la branche à remplacer est l'arbre complet
+replace_branch(Tree, NewBranch, Tree, NewBranch).
+
+%cas ou tree contient là branche (les suivants ne la contiennent pas)
+replace_branch(Tree, NewTree, Branch, NewBranch) :-
+    member(Branch, Tree),
+    remove(Branch, Tree, TempTree),
+    append(TempTree, [NewBranch], NewTree).
+
+%cas ou le premier élément n'est pas une liste
+replace_branch([First|Others], NewTree, Branch, NewBranch):- 
+    \+is_list(First),
+    replace_branch(Others, TempNewTree, Branch, NewBranch),
+    append([First], TempNewTree, NewTree).
+
+
+%cas ou First est une liste, qui n'est pas la branche (vu que l'arbre ne la contient pas)
+replace_branch([First|Others], NewTree, Branch, NewBranch):-
+    is_list(First),
+    replace_branch(First, TempTree, Branch, NewBranch),
+    NewTree = [TempTree|Others].
+
+%cas ou First est une liste, qui n'est pas la branche, mais le remplacement échoue
+replace_branch([First|Others], NewTree, Branch, NewBranch):-
+    is_list(First),
+    \+replace_branch(First, _, Branch, NewBranch),
+    replace_branch(Others, TempTree, Branch, NewBranch),
+    NewTree = [First|TempTree].
+
+
+    
 
 % ----------------------------------------------------
 % Prédicats qui permettent de parcourir l'arbre et de fermer les branches
@@ -169,36 +201,31 @@ copy([H| L], [H| N]) :- copy(L, N).
 %close_conflicts([a v (not a), [a, not a], [b, not b]], [a v (not a),[a, not a], [b, not b]], ClosedTree),!.
 % Cas dans lequel on arrive à la fin d'une branche
 close_conflicts(TreeBeginning, [], ClosedTree) :- 
-    ClosedTree = TreeBeginning,
-    echo("end").
+    ClosedTree = TreeBeginning.
 
 close_conflicts(TreeBeginning, _, ClosedTree) :- 
     conflict_exists(TreeBeginning),
-    ClosedTree = TreeBeginning,
-    echo("conflict").
+    ClosedTree = TreeBeginning.
 
 % Cas dans lequel on se trouve dans une branche sans sous branches
 close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     \+is_list(First),
     no_sub_branch(Others),
     check_conflicts(Others, First),
-    ClosedTree = [conflict| TreeBeginning],
-    echo("1").
+    ClosedTree = [conflict| TreeBeginning].
 
 close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     \+is_list(First),
     no_sub_branch(Others),
     \+check_conflicts(Others, First),
-    close_conflicts(TreeBeginning, Others, ClosedTree), !,
-    echo("2").
+    close_conflicts(TreeBeginning, Others, ClosedTree), !.
 
 % Cas dans lequel on se trouve dans une branche avec sous branches
 close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     \+is_list(First),
     \+no_sub_branch(Others),
     check_conflicts(Others, First),
-    ClosedTree = [conflict| TreeBeginning],
-    echo("3").
+    ClosedTree = [conflict| TreeBeginning].
 
 close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     \+is_list(First),
@@ -214,8 +241,7 @@ close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     append(B, [B2], TreePartiallyClosed),
 
     get_position_in_tree(TreePartiallyClosed, First, [_| O]),
-    close_conflicts(TreePartiallyClosed, O, ClosedTree), !,
-    echo("4").
+    close_conflicts(TreePartiallyClosed, O, ClosedTree), !.
 
 close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     \+is_list(First),
@@ -231,8 +257,7 @@ close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     append(B, [ClosedB2], TreePartiallyClosed),
 
     get_position_in_tree(TreePartiallyClosed, First, [_| O]),
-    close_conflicts(TreePartiallyClosed, O, ClosedTree), !,
-    echo("5").
+    close_conflicts(TreePartiallyClosed, O, ClosedTree), !.
 
 close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     \+is_list(First),
@@ -241,8 +266,7 @@ close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     find_sub_branches([First| Others], B1, B2),
     \+check_conflicts(B1, First),
     \+check_conflicts(B2, First),
-    close_conflicts(TreeBeginning, Others, ClosedTree), !,
-    echo("6").
+    close_conflicts(TreeBeginning, Others, ClosedTree), !.
 
 close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     is_list(First),
@@ -250,12 +274,10 @@ close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
     close_conflicts(B1, B1, ClosedB1), !,
     close_conflicts(B2, B2, ClosedB2), !,
 
-    echo(TreeBeginning),
     close_main_branch(TreeBeginning, ClosedB1, ClosedB2, NewTree),
     get_before_sub_branches(NewTree, BeforeBranches),
     append([ClosedB1], [ClosedB2], C),
-    append(BeforeBranches, C, ClosedTree),
-    echo("7").
+    append(BeforeBranches, C, ClosedTree).
 
 % check_conflicts permet de vérifier si la branche est à fermer (conflits dans
 % toutes les sous-branches)
@@ -310,12 +332,18 @@ conflict_exists([conflict| _]).
 % Prédicat de récupération de la formule sur laquelle on veut travailler
 % ----------------------------------------------------
 
+
+get_form([First| Others], TreeBeginning, Marked, Form, Branch, Rule, propositional) :-
+    \+is_list(First),
+    \+member(First, Marked),
+    First \= conflict,
+    \+rule(First, _, _, Rule),
+    get_form(Others, TreeBeginning, Marked, Form, Branch, Rule, propositional).
+
 get_form([First| _], TreeBeginning, Marked, Form, Branch, Rule, propositional) :-
     \+is_list(First),
     \+member(First, Marked),
-    echo(First),
     First \= conflict,
-    echo(First),
     Branch = TreeBeginning,
     Form = First,
     rule(Form, _, _, Rule).
@@ -347,9 +375,10 @@ mark_Form(Form, Marked, New_Marked) :- append(Form, Marked, New_Marked).
 % Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
 % ----------------------------------------------------
 
-solve(Tree, ClosedTree) :- set_echo,
+solve(Tree) :- set_echo,
     close_conflicts(Tree, Tree, TempTree), !,
-    loop(TempTree, ClosedTree, [], _, propositional).
+    loop(TempTree, ClosedTree, [], _, propositional),!,
+    display_tree(ClosedTree),!.
 
 % ----------------------------------------------------
 % Prédicats loop pour la logique propositionnelle
@@ -360,11 +389,11 @@ loop(Tree, ClosedTree, _, _, _) :- conflict_exists(Tree), ClosedTree = Tree.
 loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
     get_form(Tree, Tree, Marked, Form, Branch, Rule, propositional), !,
     apply(Form, Branch, NewBranch, Rule),
-    remove(Branch, Tree, TempTree), !,
-    append(TempTree, NewBranch, TempTree2),
+    replace_branch(Tree, TempTree, Branch, NewBranch),
     mark_Form([Form], Marked, NewMarked),
-    close_conflicts(TempTree2, TempTree2, TempTree3), !,
+    close_conflicts(TempTree, TempTree, TempTree3), !,
     loop(TempTree3, ClosedTree, NewMarked, _, propositional), !.
+
 
 % ----------------------------------------------------
 % Prédicats display_tree : prédicat d'affichage de l'arbre
