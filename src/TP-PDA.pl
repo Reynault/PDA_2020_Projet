@@ -42,6 +42,8 @@ echo(_).
 :- op(3,xfy,v)   . % or
 :- op(4,xfy,=>)  . % implication
 :- op(5,xfy,<=>) . % equality
+:- op(6, xfy, e) . % exists
+:- op(7, xfy, fa). % for all
 
 % ----------------------------------------------------
 % Implantation de la méthode pour le calcul propositionnel
@@ -67,14 +69,14 @@ rule(Form, A, B, nimp) :- Form = not (A => B).
 % ----------------------------------------------------
 
 %cas simples où la branche ne contient pas de sous branche
-apply(Form, Branch, New_Branch, or) :- no_sub_branch(Branch), rule(Form, F1, F2, or), append(Branch, [[F1]], Branch_Temp), append(Branch_Temp, [[F2]], New_Branch).
-apply(Form, Branch, New_Branch, nor):- no_sub_branch(Branch), rule(Form, F1, F2, nor), append(Branch, [not F1, not F2], New_Branch).
+apply(Form, Branch, New_Branch, or) :- no_sub_branch(Branch),!, rule(Form, F1, F2, or), append(Branch, [[F1]], Branch_Temp), append(Branch_Temp, [[F2]], New_Branch).
+apply(Form, Branch, New_Branch, nor):- no_sub_branch(Branch),!, rule(Form, F1, F2, nor), append(Branch, [not F1, not F2], New_Branch).
 
-apply(Form, Branch, New_Branch, and):- no_sub_branch(Branch), rule(Form, F1, F2, and), append(Branch, [F1, F2], New_Branch).
-apply(Form, Branch, New_Branch, nand):- no_sub_branch(Branch), rule(Form, F1, F2, nand), append(Branch, [[not F1]], Branch_Temp), append(Branch_Temp, [[not F2]], New_Branch).
+apply(Form, Branch, New_Branch, and):- no_sub_branch(Branch),!, rule(Form, F1, F2, and), append(Branch, [F1, F2], New_Branch).
+apply(Form, Branch, New_Branch, nand):- no_sub_branch(Branch),!, rule(Form, F1, F2, nand), append(Branch, [[not F1]], Branch_Temp), append(Branch_Temp, [[not F2]], New_Branch).
 
-apply(Form, Branch, New_Branch, imp):- no_sub_branch(Branch), rule(Form, F1, F2, imp), append(Branch, [[not F1]], Branch_Temp), append(Branch_Temp, [[F2]], New_Branch).
-apply(Form, Branch, New_Branch, nimp):- no_sub_branch(Branch), rule(Form, F1, F2, nimp), append(Branch, [F1, not F2], New_Branch).
+apply(Form, Branch, New_Branch, imp):- no_sub_branch(Branch),!, rule(Form, F1, F2, imp), append(Branch, [[not F1]], Branch_Temp), append(Branch_Temp, [[F2]], New_Branch).
+apply(Form, Branch, New_Branch, nimp):- no_sub_branch(Branch),!, rule(Form, F1, F2, nimp), append(Branch, [F1, not F2], New_Branch).
 
 %cas où la branche contient des sous branches
 apply(Form, Branch, New_Branch, Rule) :- 
@@ -89,9 +91,9 @@ apply(Form, Branch, New_Branch, Rule) :-
 % ----------------------------------------------------
 % Prédicat no_sub_branch: rend vrai si la branche n'a pas de sous branche
 % ----------------------------------------------------
-
-no_sub_branch([First|Others]) :- \+is_list(First), no_sub_branch(Others).
 no_sub_branch([]).
+no_sub_branch([First|Others]) :- \+is_list(First), no_sub_branch(Others).
+
 
 % ----------------------------------------------------
 % Prédicat find_sub_branches: rend vrai si B1 et B2 sont les sous Branches de Branch
@@ -145,6 +147,7 @@ get_position_in_tree([First| Others], Form, Position) :-
 % ----------------------------------------------------
 
 remove(_, [], []).
+remove(List, List, []).
 remove(X, [X|Others], R1) :- remove(X, Others, R1).
 remove(X, [Y|Others], R1) :- X \== Y, length(Others, N), N > 0, remove(X, Others, R2), append([Y], R2, R1).
 remove(X, [Y|Others], R1) :- X \== Y, length(Others, 0), R1 = [Y].
@@ -153,18 +156,17 @@ remove(X, [Y|Others], R1) :- X \== Y, length(Others, 0), R1 = [Y].
 % Prédicats utilitaires
 % ----------------------------------------------------
 
+
+
 % Prédicat de copie
 copy([], []).
 copy([H| L], [H| N]) :- copy(L, N).
-
-% Prédicat de vérification si une liste est vide
-isEmpty([]).
 
 % ----------------------------------------------------
 % Prédicats qui permettent de parcourir l'arbre et de fermer les branches
 % qui contiennent un conflit
 % ----------------------------------------------------
-
+%close_conflicts([a v (not a), [a, not a], [b, not b]], [a v (not a),[a, not a], [b, not b]], ClosedTree),!.
 % Cas dans lequel on arrive à la fin d'une branche
 close_conflicts(TreeBeginning, [], ClosedTree) :- 
     ClosedTree = TreeBeginning,
@@ -311,7 +313,9 @@ conflict_exists([conflict| _]).
 get_form([First| _], TreeBeginning, Marked, Form, Branch, Rule, propositional) :-
     \+is_list(First),
     \+member(First, Marked),
+    echo(First),
     First \= conflict,
+    echo(First),
     Branch = TreeBeginning,
     Form = First,
     rule(Form, _, _, Rule).
@@ -343,22 +347,24 @@ mark_Form(Form, Marked, New_Marked) :- append(Form, Marked, New_Marked).
 % Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
 % ----------------------------------------------------
 
-solve(Tree) :- set_echo,
-    close_conflicts(Tree, Tree, ClosedTree), !,
-    loop(ClosedTree, _, [], _, propositional), !.
+solve(Tree, ClosedTree) :- set_echo,
+    close_conflicts(Tree, Tree, TempTree), !,
+    loop(TempTree, ClosedTree, [], _, propositional).
 
 % ----------------------------------------------------
 % Prédicats loop pour la logique propositionnelle
 % ----------------------------------------------------
 
-loop(Tree, _, _, _, _) :- conflict_exists(Tree).
+loop(Tree, ClosedTree, _, _, _) :- conflict_exists(Tree), ClosedTree = Tree.
 
 loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
-    get_form(ClosedTree, ClosedTree, Marked, Form, Branch, Rule, propositional), !,
-    apply(Form, Branch, Rule),
-    mark_Form(Form, Marked, NewMarked),
-    close_conflicts(Tree, Tree, ClosedTree), !,
-    loop(ClosedTree, _, NewMarked, _, propositional), !.
+    get_form(Tree, Tree, Marked, Form, Branch, Rule, propositional), !,
+    apply(Form, Branch, NewBranch, Rule),
+    remove(Branch, Tree, TempTree), !,
+    append(TempTree, NewBranch, TempTree2),
+    mark_Form([Form], Marked, NewMarked),
+    close_conflicts(TempTree2, TempTree2, TempTree3), !,
+    loop(TempTree3, ClosedTree, NewMarked, _, propositional), !.
 
 % ----------------------------------------------------
 % Prédicats display_tree : prédicat d'affichage de l'arbre
