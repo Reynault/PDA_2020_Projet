@@ -157,6 +157,9 @@ remove(X, [Y|Others], R1) :- X \== Y, length(Others, 0), R1 = [Y].
 copy([], []).
 copy([H| L], [H| N]) :- copy(L, N).
 
+% Prédicat de vérification si une liste est vide
+isEmpty([]).
+
 % ----------------------------------------------------
 % Prédicats qui permettent de parcourir l'arbre et de fermer les branches
 % qui contiennent un conflit
@@ -308,9 +311,7 @@ conflict_exists([conflict| _]).
 get_form([First| _], TreeBeginning, Marked, Form, Branch, Rule, propositional) :-
     \+is_list(First),
     \+member(First, Marked),
-    echo(First),
     First \= conflict,
-    echo(First),
     Branch = TreeBeginning,
     Form = First,
     rule(Form, _, _, Rule).
@@ -343,8 +344,8 @@ mark_Form(Form, Marked, New_Marked) :- append(Form, Marked, New_Marked).
 % ----------------------------------------------------
 
 solve(Tree) :- set_echo,
-    close_conflicts(Tree, Tree, _), !,
-    loop(Tree, _, [], _, propositional), !.
+    close_conflicts(Tree, Tree, ClosedTree), !,
+    loop(ClosedTree, _, [], _, propositional), !.
 
 % ----------------------------------------------------
 % Prédicats loop pour la logique propositionnelle
@@ -358,3 +359,38 @@ loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
     mark_Form(Form, Marked, NewMarked),
     close_conflicts(Tree, Tree, ClosedTree), !,
     loop(ClosedTree, _, NewMarked, _, propositional), !.
+
+% ----------------------------------------------------
+% Prédicats display_tree : prédicat d'affichage de l'arbre
+% ----------------------------------------------------
+
+display_tree(Tree) :- display_tree(Tree, "").
+
+display_tree([], _).
+
+display_tree([First| Others], _) :-
+    no_sub_branch([First| Others]),
+    isEmpty(Others),
+    echo(First).
+
+display_tree([First| Others], _) :-
+    no_sub_branch([First| Others]),
+    \+isEmpty(Others),
+    echo(First),
+    echo(" --- "),
+    display_tree(Others).
+
+display_tree(Tree, Offset) :-
+    \+no_sub_branch(Tree),
+    get_before_sub_branches(Tree, BeforeBranches),
+    display_tree(BeforeBranches),
+    find_sub_branches(Tree, B1, B2),
+    string_concat(Offset, "        ", NewOffset),
+    echo("\n"),
+    echo(NewOffset),
+    echo(" --- "),
+    display_tree(B1, NewOffset),
+    echo("\n"),
+    echo(NewOffset),
+    echo(" --- "),
+    display_tree(B2, NewOffset).
