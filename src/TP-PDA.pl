@@ -105,7 +105,8 @@ find_sub_branches([First|_], B2) :- is_list(First), B2 = First.
 find_sub_branches([First|Others], B2) :- \+is_list(First), find_sub_branches(Others, B2).
 
 % ----------------------------------------------------
-% Prédicat close_main_branch: détècte s'il y a un conflit dans deux branches données en paramètres, 
+% Prédicat close_main_branch: détècte s'il y a un conflit dans deux branches données en paramètres, si c'est le cas,
+% ferme la branche
 % ----------------------------------------------------
 
 close_main_branch(MainBranch, B1, B2, NewMainBranch) :- 
@@ -307,6 +308,9 @@ conflict_exists([conflict| _]).
 get_form([First| _], TreeBeginning, Marked, Form, Branch, Rule, propositional) :-
     \+is_list(First),
     \+member(First, Marked),
+    echo(First),
+    First \= conflict,
+    echo(First),
     Branch = TreeBeginning,
     Form = First,
     rule(Form, _, _, Rule).
@@ -319,11 +323,13 @@ get_form([First| Others], TreeBeginning, Marked, Form, Branch, Rule, proposition
 get_form([First| Others], _, Marked, Form, Branch, Rule, propositional) :-
     is_list(First),
     find_sub_branches([First| Others], B1, _),
+    \+conflict_exists(B1),
     get_form(B1, B1, Marked, Form, Branch, Rule, propositional), !.
 
 get_form([First| Others], _, Marked, Form, Branch, Rule, propositional) :-
     is_list(First),
     find_sub_branches([First| Others], _, B2),
+    \+conflict_exists(B2),
     get_form(B2, B2, Marked, Form, Branch, Rule, propositional), !.
 
 % ----------------------------------------------------
@@ -336,18 +342,19 @@ mark_Form(Form, Marked, New_Marked) :- append(Form, Marked, New_Marked).
 % Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
 % ----------------------------------------------------
 
-solve(Tree) :- set_echo, loop(Tree, _, [], _, propositional), !.
+solve(Tree) :- set_echo,
+    close_conflicts(Tree, Tree, _), !,
+    loop(Tree, _, [], _, propositional), !.
 
 % ----------------------------------------------------
 % Prédicats loop pour la logique propositionnelle
 % ----------------------------------------------------
 
-loop(Tree, ClosedTree, _, _, propositional) :-
-    close_conflicts(Tree, Tree, ClosedTree), !,
-    conflict_exists(ClosedTree).
+loop(Tree, _, _, _, _) :- conflict_exists(Tree).
 
 loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
-    get_form(Tree, Tree, Marked, Form, Branch, Rule, propositional), !,
+    get_form(ClosedTree, ClosedTree, Marked, Form, Branch, Rule, propositional), !,
     apply(Form, Branch, Rule),
     mark_Form(Form, Marked, NewMarked),
-    loop(ClosedTree, _, NewMarked, _, propositional).
+    close_conflicts(Tree, Tree, ClosedTree), !,
+    loop(ClosedTree, _, NewMarked, _, propositional), !.
