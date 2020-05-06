@@ -196,9 +196,9 @@ concat_and_close_new_tree(TreeBeginning, B1, B2, NewTree) :-
     append(Tmp, [B2], Tmp2),
     (
         conflict_exists(B1), conflict_exists(B2),
-        append([conflict], Tmp2, NewTree), nl
+        append([conflict], Tmp2, NewTree)
         ;
-        NewTree = Tmp2, nl
+        NewTree = Tmp2
     ).
 
 % ----------------------------------------------------
@@ -209,20 +209,23 @@ concat_and_close_new_tree(TreeBeginning, B1, B2, NewTree) :-
 %close_tree([a v (not a), [a, not a], [b, not b]], [a v (not a),[a, not a], [b, not b]], ClosedTree),!.
 
 % Fin de la branche
-close_tree(TreeBeginning, [], ClosedTree) :- 
-    ClosedTree = TreeBeginning.
+close_tree(TreeBeginning, [], ClosedTree) :-
+    ClosedTree = TreeBeginning,
+    echo("1").
 
 % Branche déjà fermé
 close_tree(TreeBeginning, _, ClosedTree) :- 
     conflict_exists(TreeBeginning),
-    ClosedTree = TreeBeginning.
+    ClosedTree = TreeBeginning,
+    echo("2").
 
 % Formule à vérifier
 close_tree(TreeBeginning, [First| Others], ClosedTree) :-
     \+is_list(First),
     close_conflicts(TreeBeginning, Others, First, ClosedTreeForFirst),
     get_position_in_tree(ClosedTreeForFirst, First, [_| OthersInClosedTree]),
-    close_tree(ClosedTreeForFirst, OthersInClosedTree, ClosedTree).
+    close_tree(ClosedTreeForFirst, OthersInClosedTree, ClosedTree),
+    echo("3").
 
 % Jonction entre deux branches
 close_tree(TreeBeginning, [First| _], ClosedTree) :-
@@ -230,7 +233,8 @@ close_tree(TreeBeginning, [First| _], ClosedTree) :-
     find_sub_branches(TreeBeginning, B1, B2),
     close_tree(B1, B1, ClosedB1),
     close_tree(B2, B2, ClosedB2),
-    concat_and_close_new_tree(TreeBeginning, ClosedB1, ClosedB2, ClosedTree).
+    concat_and_close_new_tree(TreeBeginning, ClosedB1, ClosedB2, ClosedTree),
+    echo("4").
 
 % ----------------------------------------------------
 % Prédicat close_conflicts permet de fermer les branches
@@ -320,9 +324,12 @@ mark_Form(Form, Marked, New_Marked) :- append(Form, Marked, New_Marked).
 % Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
 % ----------------------------------------------------
 
-solve(Tree) :- set_echo,
+solve(Tree) :- 
+    clr_echo,
     close_tree(Tree, Tree, TempTree), !,
     loop(TempTree, ClosedTree, [], _, propositional),!,
+
+    set_echo,
     display_tree(ClosedTree),!.
 
 % ----------------------------------------------------
