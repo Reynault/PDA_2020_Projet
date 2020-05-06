@@ -41,7 +41,6 @@ echo(_).
 :- op(2,xfy,&)   . % and
 :- op(3,xfy,v)   . % or
 :- op(4,xfy,=>)  . % implication
-:- op(5,xfy,<=>) . % equality
 
 % ----------------------------------------------------
 % Implantation de la méthode pour le calcul propositionnel

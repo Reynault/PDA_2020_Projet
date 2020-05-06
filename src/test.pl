@@ -1,2 +1,18 @@
-close_tree([a, b, c, d, [not a, c, s], [b, not e]], [a, b, c, d, [not a, c, s], [b, not e]], C).
-close_tree([a, b, e, c, d, [ a, c, [e, not c], [p, not d]], [b, not e]], [a, b, e, c, d, [ a, c, [e, not c], [p, not d]], [b, not e]], C).
+% Tests pour la logique propositionnelle
+
+% True
+
+solve([a => b, b => c, not (a => c)]).
+solve([not (((a => b) => a) => a)]).
+solve([d, not a, not(d & (a=>b))]).
+solve([not d, not(a v not d)]).
+solve([r, p => (q & r), q => (not r), q]).
+
+% False
+
+solve([a => b, b => c, not (a => d)]).
+solve([not(d & (a=>b))]).
+solve([not a, not(d & (a=>b))]).
+solve([(p v q) v r, p => (q & r), q => (not r)]).
+
+% Tests pour la logique du premier ordre
