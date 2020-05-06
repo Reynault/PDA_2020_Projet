@@ -281,36 +281,36 @@ close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
 
 % check_conflicts permet de vérifier si la branche est à fermer (conflits dans
 % toutes les sous-branches)
-check_conflicts([First| _], Form) :-
+check_conflicts(TreeBeginning, [First| _], Form, NewTree) :-
     \+is_list(First),
     is_conflict(First, Form).
 
-check_conflicts([First| Others], Form) :-
+check_conflicts(TreeBeginning, [First| Others], Form, NewTree) :-
     \+is_list(First),
     \+is_conflict(First, Form),
     check_conflicts(Others, Form).
 
-check_conflicts([First| Others], _) :-
+check_conflicts(TreeBeginning, [First| Others], _, NewTree) :-
     is_list(First),
     find_sub_branches([First| Others], B1, B2),
     conflict_exists(B1),
     conflict_exists(B2).
 
-check_conflicts([First| Others], Form) :-
+check_conflicts(TreeBeginning, [First| Others], Form, NewTree) :-
     is_list(First),
     find_sub_branches([First| Others], B1, B2),
     conflict_exists(B1),
     \+conflict_exists(B2),
     check_conflicts(B2, Form).
 
-check_conflicts([First| Others], Form) :-
+check_conflicts(TreeBeginning, [First| Others], Form, NewTree) :-
     is_list(First),
     find_sub_branches([First| Others], B1, B2),
     \+conflict_exists(B1),
     check_conflicts(B1, Form),
     conflict_exists(B2).
 
-check_conflicts([First| Others], Form) :-
+check_conflicts(TreeBeginning, [First| Others], Form, NewTree) :-
     is_list(First),
     find_sub_branches([First| Others], B1, B2),
     \+conflict_exists(B1),
