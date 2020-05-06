@@ -42,8 +42,6 @@ echo(_).
 :- op(3,xfy,v)   . % or
 :- op(4,xfy,=>)  . % implication
 :- op(5,xfy,<=>) . % equality
-:- op(6, xfy, e) . % exists
-:- op(7, xfy, fa). % for all
 
 % ----------------------------------------------------
 % Implantation de la méthode pour le calcul propositionnel
@@ -191,134 +189,81 @@ replace_branch([First|Others], NewTree, Branch, NewBranch):-
     replace_branch(Others, TempTree, Branch, NewBranch),
     NewTree = [First|TempTree].
 
-
-    
+% permet de reformer un arbre avec la branche principale et les deux sous branches
+concat_and_close_new_tree(TreeBeginning, B1, B2, NewTree) :-
+    get_before_sub_branches(TreeBeginning, BeforeBranches),
+    append(BeforeBranches, [B1], Tmp),
+    append(Tmp, [B2], Tmp2),
+    (
+        conflict_exists(B1), conflict_exists(B2),
+        append([conflict], Tmp2, NewTree), nl
+        ;
+        NewTree = Tmp2, nl
+    ).
 
 % ----------------------------------------------------
 % Prédicats qui permettent de parcourir l'arbre et de fermer les branches
 % qui contiennent un conflit
 % ----------------------------------------------------
-%close_conflicts([a v (not a), [a, not a], [b, not b]], [a v (not a),[a, not a], [b, not b]], ClosedTree),!.
-% Cas dans lequel on arrive à la fin d'une branche
-close_conflicts(TreeBeginning, [], ClosedTree) :- 
+
+%close_tree([a v (not a), [a, not a], [b, not b]], [a v (not a),[a, not a], [b, not b]], ClosedTree),!.
+
+% Fin de la branche
+close_tree(TreeBeginning, [], ClosedTree) :- 
     ClosedTree = TreeBeginning.
 
-close_conflicts(TreeBeginning, _, ClosedTree) :- 
+% Branche déjà fermé
+close_tree(TreeBeginning, _, ClosedTree) :- 
     conflict_exists(TreeBeginning),
     ClosedTree = TreeBeginning.
 
-% Cas dans lequel on se trouve dans une branche sans sous branches
-close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
+% Formule à vérifier
+close_tree(TreeBeginning, [First| Others], ClosedTree) :-
     \+is_list(First),
-    no_sub_branch(Others),
-    check_conflicts(Others, First),
-    ClosedTree = [conflict| TreeBeginning].
+    close_conflicts(TreeBeginning, Others, First, ClosedTreeForFirst),
+    get_position_in_tree(ClosedTreeForFirst, First, [_| OthersInClosedTree]),
+    close_tree(ClosedTreeForFirst, OthersInClosedTree, ClosedTree).
 
-close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
-    \+is_list(First),
-    no_sub_branch(Others),
-    \+check_conflicts(Others, First),
-    close_conflicts(TreeBeginning, Others, ClosedTree), !.
-
-% Cas dans lequel on se trouve dans une branche avec sous branches
-close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
-    \+is_list(First),
-    \+no_sub_branch(Others),
-    check_conflicts(Others, First),
-    ClosedTree = [conflict| TreeBeginning].
-
-close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
-    \+is_list(First),
-    \+no_sub_branch(Others),
-    \+check_conflicts(Others, First),
-    find_sub_branches([First| Others], B1, B2),
-    check_conflicts(B1, First),
-    \+conflict_exists(B1),
-    append([conflict], B1, ClosedB1),
-
-    get_before_sub_branches(TreeBeginning, BeforeBranches),
-    append(BeforeBranches, [ClosedB1], B),
-    append(B, [B2], TreePartiallyClosed),
-
-    get_position_in_tree(TreePartiallyClosed, First, [_| O]),
-    close_conflicts(TreePartiallyClosed, O, ClosedTree), !.
-
-close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
-    \+is_list(First),
-    \+no_sub_branch(Others),
-    \+check_conflicts(Others, First),
-    find_sub_branches([First| Others], B1, B2),
-    check_conflicts(B2, First),
-    \+conflict_exists(B2),
-    append([conflict], B2, ClosedB2),
-
-    get_before_sub_branches(TreeBeginning, BeforeBranches),
-    append(BeforeBranches, [B1], B),
-    append(B, [ClosedB2], TreePartiallyClosed),
-
-    get_position_in_tree(TreePartiallyClosed, First, [_| O]),
-    close_conflicts(TreePartiallyClosed, O, ClosedTree), !.
-
-close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
-    \+is_list(First),
-    \+no_sub_branch(Others),
-    \+check_conflicts(Others, First),
-    find_sub_branches([First| Others], B1, B2),
-    \+check_conflicts(B1, First),
-    \+check_conflicts(B2, First),
-    close_conflicts(TreeBeginning, Others, ClosedTree), !.
-
-close_conflicts(TreeBeginning, [First| Others], ClosedTree) :-
+% Jonction entre deux branches
+close_tree(TreeBeginning, [First| _], ClosedTree) :-
     is_list(First),
-    find_sub_branches([First| Others], B1, B2),
-    close_conflicts(B1, B1, ClosedB1), !,
-    close_conflicts(B2, B2, ClosedB2), !,
+    find_sub_branches(TreeBeginning, B1, B2),
+    close_tree(B1, B1, ClosedB1),
+    close_tree(B2, B2, ClosedB2),
+    concat_and_close_new_tree(TreeBeginning, ClosedB1, ClosedB2, ClosedTree).
 
-    close_main_branch(TreeBeginning, ClosedB1, ClosedB2, NewTree),
-    get_before_sub_branches(NewTree, BeforeBranches),
-    append([ClosedB1], [ClosedB2], C),
-    append(BeforeBranches, C, ClosedTree).
+% ----------------------------------------------------
+% Prédicat close_conflicts permet de fermer les branches
+% qui présentent un conflit avec la formule en paramètre
+% ----------------------------------------------------
 
-% check_conflicts permet de vérifier si la branche est à fermer (conflits dans
-% toutes les sous-branches)
-check_conflicts(TreeBeginning, [First| _], Form, NewTree) :-
+close_conflicts(TreeBeginning, [_| _], _, ClosedTree) :-
+    conflict_exists(TreeBeginning), ClosedTree = TreeBeginning.
+
+close_conflicts(TreeBeginning, [], _, ClosedTree) :-
+    ClosedTree = TreeBeginning.
+
+close_conflicts(TreeBeginning, [First| _], Form, ClosedTree) :-
     \+is_list(First),
-    is_conflict(First, Form).
+    is_conflict(First, Form),
+    append([conflict], TreeBeginning, ClosedTree).
 
-check_conflicts(TreeBeginning, [First| Others], Form, NewTree) :-
+close_conflicts(TreeBeginning, [First| Others], Form, ClosedTree) :-
     \+is_list(First),
     \+is_conflict(First, Form),
-    check_conflicts(Others, Form).
+    close_conflicts(TreeBeginning, Others, Form, ClosedTree), !.
 
-check_conflicts(TreeBeginning, [First| Others], _, NewTree) :-
+close_conflicts(TreeBeginning, [First| Others], Form, ClosedTree) :-
     is_list(First),
     find_sub_branches([First| Others], B1, B2),
-    conflict_exists(B1),
-    conflict_exists(B2).
+    close_conflicts(B1, B1, Form, ClosedB1), !,
+    close_conflicts(B2, B2, Form, ClosedB2), !,
+    concat_and_close_new_tree(TreeBeginning, ClosedB1, ClosedB2, ClosedTree).
 
-check_conflicts(TreeBeginning, [First| Others], Form, NewTree) :-
-    is_list(First),
-    find_sub_branches([First| Others], B1, B2),
-    conflict_exists(B1),
-    \+conflict_exists(B2),
-    check_conflicts(B2, Form).
+% ----------------------------------------------------
+% Prédicat is_conflict permet de vérifier si un conflit existe entre deux formules
+% ----------------------------------------------------
 
-check_conflicts(TreeBeginning, [First| Others], Form, NewTree) :-
-    is_list(First),
-    find_sub_branches([First| Others], B1, B2),
-    \+conflict_exists(B1),
-    check_conflicts(B1, Form),
-    conflict_exists(B2).
-
-check_conflicts(TreeBeginning, [First| Others], Form, NewTree) :-
-    is_list(First),
-    find_sub_branches([First| Others], B1, B2),
-    \+conflict_exists(B1),
-    check_conflicts(B1, Form ),
-    \+conflict_exists(B2),
-    check_conflicts(B2, Form).
-
-% is_conflict permet de vérifier si un conflit existe entre deux formules
 is_conflict(A, B):- \+is_list(A), A = not B.
 is_conflict(A, B):- \+is_list(A), B = not A.
 
@@ -376,7 +321,7 @@ mark_Form(Form, Marked, New_Marked) :- append(Form, Marked, New_Marked).
 % ----------------------------------------------------
 
 solve(Tree) :- set_echo,
-    close_conflicts(Tree, Tree, TempTree), !,
+    close_tree(Tree, Tree, TempTree), !,
     loop(TempTree, ClosedTree, [], _, propositional),!,
     display_tree(ClosedTree),!.
 
@@ -391,7 +336,7 @@ loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
     apply(Form, Branch, NewBranch, Rule),
     replace_branch(Tree, TempTree, Branch, NewBranch),
     mark_Form([Form], Marked, NewMarked),
-    close_conflicts(TempTree, TempTree, TempTree3), !,
+    close_tree(TempTree, TempTree, TempTree3), !,
     loop(TempTree3, ClosedTree, NewMarked, _, propositional), !.
 
 

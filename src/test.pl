@@ -1,0 +1,2 @@
+close_tree([a, b, c, d, [not a, c, s], [b, not e]], [a, b, c, d, [not a, c, s], [b, not e]], C).
+close_tree([a, b, e, c, d, [ a, c, [e, not c], [p, not d]], [b, not e]], [a, b, e, c, d, [ a, c, [e, not c], [p, not d]], [b, not e]], C).
