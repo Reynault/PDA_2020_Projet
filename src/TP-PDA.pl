@@ -41,7 +41,8 @@ echo(_).
 :- op(2,xfy,&)   . % and
 :- op(3,xfy,v)   . % or
 :- op(4,xfy,=>)  . % implication
-:- op(5,xfy,<=>) . % equality
+
+:- op(100,fx,marked)  . % for marked forms
 
 % ----------------------------------------------------
 % Implantation de la méthode pour le calcul propositionnel
@@ -52,6 +53,8 @@ echo(_).
 % à la formule
 % ----------------------------------------------------
 
+rule(Form, A, marked) :- Form = marked (A).
+
 rule(Form, A, B, or) :- Form = A v B.
 rule(Form, A, B, nor) :- Form = not (A v B).
 
@@ -61,6 +64,16 @@ rule(Form, A, B, nand) :- Form = not (A & B).
 rule(Form, A, B, imp) :- Form = A => B.
 rule(Form, A, B, nimp) :- Form = not (A => B).
 
+rule(Form, _, _, nforall) :- F = not Form, rule(F, _, _, forall).
+rule(Form, _, _, nexists) :- F = not Form, rule(F, _, _, exists).
+
+rule(Form, A, B, forall) :-
+    compound(Form), functor(Form, Name, Arity), Name == forall, Arity == 2,
+    arg(1, Form, [Var, _]), var(Var), A = Var, arg(2, Form, Form), B = Form.
+
+rule(Form, A, B, exists) :-
+    compound(Form), functor(Form, Name, Arity), Name == exists, Arity == 2,
+    arg(1, Form, Var), var(Var), A = Var, arg(2, Form, Form), B = Form.
 
 % ----------------------------------------------------
 % Prédicats apply: Permet d'appliquer une règle sur une formule
@@ -116,8 +129,12 @@ close_main_branch(MainBranch, B1, B2, NewMainBranch) :-
 close_main_branch(MainBranch, _, _, NewMainBranch) :- NewMainBranch = MainBranch.
 
 % ----------------------------------------------------
-% Prédicat get_before_sub_branches: rend vrai si B1 et B2 sont les sous Branches de Branch
+% Prédicat get_before_sub_branches: rend vrai si BeforeBranches correspond
+% à ce qui se trouve avant les branches
 % ----------------------------------------------------
+
+get_before_sub_branches([], BeforeBranches) :- 
+    BeforeBranches = [].
 
 get_before_sub_branches([First| _], BeforeBranches) :- 
     is_list(First),
@@ -282,43 +299,53 @@ conflict_exists([conflict| _]).
 % ----------------------------------------------------
 
 
-get_form([First| Others], TreeBeginning, Marked, Form, Branch, Rule, propositional) :-
+get_form([First| Others], TreeBeginning, Form, Branch, Rule, propositional) :-
     \+is_list(First),
-    \+member(First, Marked),
+    \+rule(First, _, marked),
     First \= conflict,
     \+rule(First, _, _, Rule),
-    get_form(Others, TreeBeginning, Marked, Form, Branch, Rule, propositional).
+    get_form(Others, TreeBeginning, Form, Branch, Rule, propositional).
 
-get_form([First| _], TreeBeginning, Marked, Form, Branch, Rule, propositional) :-
+get_form([First| _], TreeBeginning, Form, Branch, Rule, propositional) :-
     \+is_list(First),
-    \+member(First, Marked),
+    \+rule(First, _, marked),
     First \= conflict,
     Branch = TreeBeginning,
     Form = First,
     rule(Form, _, _, Rule).
 
-get_form([First| Others], TreeBeginning, Marked, Form, Branch, Rule, propositional) :-
+get_form([First| Others], TreeBeginning, Form, Branch, Rule, propositional) :-
     \+is_list(First),
-    member(First, Marked),
-    get_form(Others, TreeBeginning, Marked, Form, Branch, Rule, propositional), !.
+    rule(First, _, marked),
+    get_form(Others, TreeBeginning, Form, Branch, Rule, propositional), !.
 
-get_form([First| Others], _, Marked, Form, Branch, Rule, propositional) :-
+get_form([First| Others], _, Form, Branch, Rule, propositional) :-
     is_list(First),
     find_sub_branches([First| Others], B1, _),
     \+conflict_exists(B1),
-    get_form(B1, B1, Marked, Form, Branch, Rule, propositional), !.
+    get_form(B1, B1, Form, Branch, Rule, propositional), !.
 
-get_form([First| Others], _, Marked, Form, Branch, Rule, propositional) :-
+get_form([First| Others], _, Form, Branch, Rule, propositional) :-
     is_list(First),
     find_sub_branches([First| Others], _, B2),
     \+conflict_exists(B2),
-    get_form(B2, B2, Marked, Form, Branch, Rule, propositional), !.
+    get_form(B2, B2, Form, Branch, Rule, propositional), !.
 
 % ----------------------------------------------------
 % Prédicat d'ajout d'une formule déjà utilisée dans un tableau de formules marquées
 % ----------------------------------------------------
 
-mark_Form(Form, Marked, New_Marked) :- append(Form, Marked, New_Marked).
+mark_Form(Form, [First| Others], New_Marked) :-
+    \+is_list(First),
+    \+Form == First,
+    mark_Form(Form, Others, Tmp),
+    append([First], Tmp, New_Marked).
+
+mark_Form(Form, [First| Others], New_Marked) :-
+    \+is_list(First),
+    Form == First,
+    New_Form = marked (Form),
+    append([New_Form], Others,New_Marked).
 
 % ----------------------------------------------------
 % Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
@@ -327,7 +354,7 @@ mark_Form(Form, Marked, New_Marked) :- append(Form, Marked, New_Marked).
 solve(Tree) :- 
     clr_echo,
     close_tree(Tree, Tree, TempTree), !,
-    loop(TempTree, ClosedTree, [], _, propositional),!,
+    loop(TempTree, ClosedTree, propositional),!,
 
     set_echo,
     display_tree(ClosedTree),!.
@@ -336,16 +363,111 @@ solve(Tree) :-
 % Prédicats loop pour la logique propositionnelle
 % ----------------------------------------------------
 
-loop(Tree, ClosedTree, _, _, _) :- conflict_exists(Tree), ClosedTree = Tree.
+loop(Tree, ClosedTree, _) :- conflict_exists(Tree), ClosedTree = Tree.
 
-loop(Tree, ClosedTree, Marked, NewMarked, propositional) :-
-    get_form(Tree, Tree, Marked, Form, Branch, Rule, propositional), !,
+loop(Tree, ClosedTree, propositional) :-
+    get_form(Tree, Tree, Form, Branch, Rule, propositional), !,
     apply(Form, Branch, NewBranch, Rule),
-    replace_branch(Tree, TempTree, Branch, NewBranch),
-    mark_Form([Form], Marked, NewMarked),
+    mark_Form(Form, NewBranch, MarkedBranch),
+    replace_branch(Tree, TempTree, Branch, MarkedBranch),
     close_tree(TempTree, TempTree, TempTree3), !,
-    loop(TempTree3, ClosedTree, NewMarked, _, propositional), !.
+    loop(TempTree3, ClosedTree, propositional), !.
 
+
+% ----------------------------------------------------
+% Prédicats get_all_constants : prédicat qui permet de récupérer les constantes
+% ----------------------------------------------------
+
+get_all_constants(Tree, Constants) :- get_all_constants(Tree, [], Constants).
+
+get_all_constants([], Constants, NewConstants) :- NewConstants = Constants.
+
+get_all_constants([First| Others], Constants, NewConstants) :-
+    \+is_list(First),
+    get_constants(First, Constants, ConstantsInForm),
+    union(Constants, ConstantsInForm, Tmp),
+    get_all_constants(Others, Tmp, NewConstantsOthers),
+    union(Tmp, NewConstantsOthers, NewConstants).
+
+get_all_constants([First| Others], Constants, NewConstants) :-
+    is_list(First),
+    get_before_sub_branches(Constants, BeforeBranches),
+    find_sub_branches([First| Others], B1, B2),
+    get_all_constants(B1, [], ConstantsB1),
+    get_all_constants(B2, [], ConstantsB2),
+
+    union(BeforeBranches, ConstantsB1, NewB1),
+    union(BeforeBranches, ConstantsB2, NewB2),
+    append(Constants, [NewB1], Tmp),
+    append(Tmp, [NewB2], NewConstants).
+
+% ----------------------------------------------------
+% Prédicats get_constants : prédicat qui permet de récupérer les constantes en provenance
+% d'une formule
+% ----------------------------------------------------
+
+get_constants(Form, Constants, NewConstants) :-
+    rule(Form, A, B, _),
+    get_constants(A, [], ConstantsA),
+    get_constants(B, [], ConstantsB),
+    union(Constants, ConstantsA, Tmp),
+    union(Tmp, ConstantsB, NewConstants).
+
+get_constants(Form, Constants, NewConstants) :-
+    \+rule(Form, _, _, _),
+    (
+        atomic(Form),
+        append(Constants, [Form], NewConstants)
+        ;
+        compound(Form),
+        get_constants_in_function(Form, [], InFunctionConstants), !,
+        append(Constants, InFunctionConstants, NewConstants)
+    ).
+
+% ----------------------------------------------------
+% Prédicats get_constants_in_function : prédicat qui permet de récupérer les constantes 
+% en provenance d'une fonction
+% ----------------------------------------------------
+
+get_constants_in_function(Constant, Constants, NewConstants) :-
+    (
+        atomic(Constant), union(Constants, [Constant], NewConstants)
+        ;
+        var(Constant), NewConstants = Constants
+    ).
+
+get_constants_in_function(Function, Constants, NewConstants) :-
+    compound(Function),
+    compound_name_arguments(Function, _, [First| Arguments]),
+    get_constants_in_function(First, [], ConstantsFirst),
+    get_constants_in_arguments(Arguments, [], ConstantsArguments),
+    union(Constants, ConstantsFirst, Tmp),
+    union(Tmp, ConstantsArguments, NewConstants).
+
+% ----------------------------------------------------
+% Prédicats get_constants_in_arguments : prédicat qui permet de récupérer les constantes 
+% en provenance des arguments d'une fonction
+% ----------------------------------------------------
+
+get_constants_in_arguments([], Constants, NewConstants) :- NewConstants = Constants.
+
+get_constants_in_arguments([First| Arguments], Constants, NewConstants) :-
+    get_constants_in_function(First, [], ConstantsFirst),
+    get_constants_in_arguments(Arguments, [], ConstantsArguments),
+    union(Constants, ConstantsFirst, Tmp),
+    union(Tmp, ConstantsArguments, NewConstants).
+
+% ----------------------------------------------------
+% Prédicats constant_exists : prédicat qui permet de vérifier si une constante
+% existe dans l'arbre donné
+% ----------------------------------------------------
+
+constant_exists(ConstantsTree, Constant) :-
+    (member(Constant, ConstantsTree)
+    ;
+    \+no_sub_branch(ConstantsTree),
+    find_sub_branches(ConstantsTree, B1, B2),
+    (constant_exists(B1, Constant);constant_exists(B2, Constant))).
 
 % ----------------------------------------------------
 % Prédicats display_tree : prédicat d'affichage de l'arbre
