@@ -129,8 +129,12 @@ close_main_branch(MainBranch, B1, B2, NewMainBranch) :-
 close_main_branch(MainBranch, _, _, NewMainBranch) :- NewMainBranch = MainBranch.
 
 % ----------------------------------------------------
-% Prédicat get_before_sub_branches: rend vrai si B1 et B2 sont les sous Branches de Branch
+% Prédicat get_before_sub_branches: rend vrai si BeforeBranches correspond
+% à ce qui se trouve avant les branches
 % ----------------------------------------------------
+
+get_before_sub_branches([], BeforeBranches) :- 
+    BeforeBranches = [].
 
 get_before_sub_branches([First| _], BeforeBranches) :- 
     is_list(First),
@@ -380,9 +384,9 @@ get_all_constants([], Constants, NewConstants) :- NewConstants = Constants.
 
 get_all_constants([First| Others], Constants, NewConstants) :-
     \+is_list(First),
-    get_constants(First, [], ConstantsInForm),
-    get_all_constants(Others, Constants, NewConstantsOthers),
+    get_constants(First, Constants, ConstantsInForm),
     union(Constants, ConstantsInForm, Tmp),
+    get_all_constants(Others, Tmp, NewConstantsOthers),
     union(Tmp, NewConstantsOthers, NewConstants).
 
 get_all_constants([First| Others], Constants, NewConstants) :-
