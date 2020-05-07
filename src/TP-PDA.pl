@@ -64,40 +64,50 @@ rule(Form, A, B, nand) :- Form = not (A & B).
 rule(Form, A, B, imp) :- Form = A => B.
 rule(Form, A, B, nimp) :- Form = not (A => B).
 
-rule(Form, _, _, nforall) :- F = not Form, rule(F, _, _, forall).
-rule(Form, _, _, nexists) :- F = not Form, rule(F, _, _, exists).
+rule(not Form, A, B, nforall) :- rule(Form, A, B1, forall), B1 \= not F, B = not B1.
+rule(not Form, A, B, nexists) :- rule(Form, A, B1, exists), B1 \= not F, B = not B1.
+rule(not Form, A, B, nforall) :- rule(Form, A, B1, forall), B1 = not F, B = F.
+rule(not Form, A, B, nexists) :- rule(Form, A, B1, exists), B1 = not F, B = F.
 
 rule(Form, A, B, forall) :-
     compound(Form), functor(Form, Name, Arity), Name == forall, Arity == 2,
-    arg(1, Form, [Var, _]), var(Var), A = Var, arg(2, Form, Form), B = Form.
+    arg(1, Form, Var), var(Var), A = Var, arg(2, Form, B).
 
 rule(Form, A, B, exists) :-
     compound(Form), functor(Form, Name, Arity), Name == exists, Arity == 2,
-    arg(1, Form, Var), var(Var), A = Var, arg(2, Form, Form), B = Form.
+    arg(1, Form, Var), var(Var), A = Var, arg(2, Form, B).
 
 % ----------------------------------------------------
 % Prédicats apply: Permet d'appliquer une règle sur une formule
 % ----------------------------------------------------
 
 %cas simples où la branche ne contient pas de sous branche
-apply(Form, Branch, New_Branch, or) :- no_sub_branch(Branch),!, rule(Form, F1, F2, or), append(Branch, [[F1]], Branch_Temp), append(Branch_Temp, [[F2]], New_Branch).
-apply(Form, Branch, New_Branch, nor):- no_sub_branch(Branch),!, rule(Form, F1, F2, nor), append(Branch, [not F1, not F2], New_Branch).
+apply(Form, Branch, New_Branch, _, _, _, _, or) :- no_sub_branch(Branch),!, rule(Form, F1, F2, or), append(Branch, [[F1]], Branch_Temp), append(Branch_Temp, [[F2]], New_Branch).
+apply(Form, Branch, New_Branch, _, _, _, _, nor):- no_sub_branch(Branch),!, rule(Form, F1, F2, nor), append(Branch, [not F1, not F2], New_Branch).
 
-apply(Form, Branch, New_Branch, and):- no_sub_branch(Branch),!, rule(Form, F1, F2, and), append(Branch, [F1, F2], New_Branch).
-apply(Form, Branch, New_Branch, nand):- no_sub_branch(Branch),!, rule(Form, F1, F2, nand), append(Branch, [[not F1]], Branch_Temp), append(Branch_Temp, [[not F2]], New_Branch).
+apply(Form, Branch, New_Branch, _, _, _, _, and):- no_sub_branch(Branch),!, rule(Form, F1, F2, and), append(Branch, [F1, F2], New_Branch).
+apply(Form, Branch, New_Branch, _, _, _, _, nand):- no_sub_branch(Branch),!, rule(Form, F1, F2, nand), append(Branch, [[not F1]], Branch_Temp), append(Branch_Temp, [[not F2]], New_Branch).
 
-apply(Form, Branch, New_Branch, imp):- no_sub_branch(Branch),!, rule(Form, F1, F2, imp), append(Branch, [[not F1]], Branch_Temp), append(Branch_Temp, [[F2]], New_Branch).
-apply(Form, Branch, New_Branch, nimp):- no_sub_branch(Branch),!, rule(Form, F1, F2, nimp), append(Branch, [F1, not F2], New_Branch).
-
+apply(Form, Branch, New_Branch, _, _ ,_ ,_, imp):- no_sub_branch(Branch),!, rule(Form, F1, F2, imp), append(Branch, [[not F1]], Branch_Temp), append(Branch_Temp, [[F2]], New_Branch).
+apply(Form, Branch, New_Branch, _, _, _, _, nimp):- no_sub_branch(Branch),!, rule(Form, F1, F2, nimp), append(Branch, [F1, not F2], New_Branch).
+apply(Form, Branch, New_Branch, Constants, ToConsume, New_Constants, New_ToConsume, exists) :- no_sub_branch(Branch),!, rule(Form, Var, F, exists), count_constants(Constants, N),
+NameConstant is N+1, Var = NameConstant, append(Branch, [Form], New_Branch), append(Constants, [NameConstant], New_Constants).
 %cas où la branche contient des sous branches
-apply(Form, Branch, New_Branch, Rule) :- 
+apply(Form, Branch, New_Branch, Constants, ToConsume, New_Constants, New_ToConsume, Rule) :- 
     \+no_sub_branch(Branch), 
     rule(Form, _, _, Rule), 
     find_sub_branches(Branch, B1, B2), 
-    apply(Form, B1, NB1, Rule), 
-    apply(Form, B2, NB2, Rule),
+    find_sub_branches(Constants, C1, C2),
+    apply(Form, B1, NB1, C1, ToConsume, NC1, New_ToConsume, Rule), 
+    apply(Form, B2, NB2, C2, ToConsume, NC2, New_ToConsume, Rule),
     remove(B1, Branch, Branch_Temp1), remove(B2, Branch_Temp1, Branch_Temp2),
-    append(Branch_Temp2, [NB1], Branch_Temp3), append(Branch_Temp3, [NB2], New_Branch).
+    append(Branch_Temp2, [NB1], Branch_Temp3), append(Branch_Temp3, [NB2], New_Branch),
+    remove(C1, Constants, Constants_Temp1), remove(C2, Constants_Temp1, Constants_Temp2),
+    append(Constants_Temp2, [NC1], Constants_Temp3), append(Constants_Temp3, [NC2], New_Constants).
+
+
+test(Tree, Sub1, Sub2, C, C1, C2):- find_sub_branches(Tree, Sub1, Sub2), find_sub_branches(C, C1, C2).
+
 
 % ----------------------------------------------------
 % Prédicat no_sub_branch: rend vrai si la branche n'a pas de sous branche
@@ -170,6 +180,10 @@ remove(X, [Y|Others], R1) :- X \== Y, length(Others, 0), R1 = [Y].
 % ----------------------------------------------------
 % Prédicats utilitaires
 % ----------------------------------------------------
+
+count_constants([], 0).
+count_constants([First|Others], NbConstants):- \+is_list(First), count_constants(Others, NB), NbConstants is NB+1.
+count_constants([First|Others], NbConstants):- is_list(First), count_constants(First, NB1), count_constants(Others, NB2), NbConstants is NB1+NB2.
 
 isEmpty([]).
 
@@ -367,7 +381,7 @@ loop(Tree, ClosedTree, _) :- conflict_exists(Tree), ClosedTree = Tree.
 
 loop(Tree, ClosedTree, propositional) :-
     get_form(Tree, Tree, Form, Branch, Rule, propositional), !,
-    apply(Form, Branch, NewBranch, Rule),
+    apply(Form, Branch, NewBranch, _, _, _, _, Rule),
     mark_Form(Form, NewBranch, MarkedBranch),
     replace_branch(Tree, TempTree, Branch, MarkedBranch),
     close_tree(TempTree, TempTree, TempTree3), !,
