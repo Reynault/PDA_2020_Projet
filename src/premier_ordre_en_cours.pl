@@ -6,18 +6,20 @@
 :- op(5,xfy,<=>) . % equality
 
 %   forall(X, man(X))
-%   exists(X)
+%   exists(X, man(X))
 
-rule(Form, A, B, nforall) :- F = not Form, rule(F, _, _, forall).
-rule(Form, A, B, nexists) :- F = not Form, rule(F, _, _, exists).
+rule(not Form, A, B, nforall) :- rule(Form, A, B1, forall), B1 \= not F, B = not B1.
+rule(not Form, A, B, nexists) :- rule(Form, A, B1, exists), B1 \= not F, B = not B1.
+rule(not Form, A, B, nforall) :- rule(Form, A, B1, forall), B1 = not F, B = F.
+rule(not Form, A, B, nexists) :- rule(Form, A, B1, exists), B1 = not F, B = F.
 
 rule(Form, A, B, forall) :-
     compound(Form), functor(Form, Name, Arity), Name == forall, Arity == 2,
-    arg(1, Form, [Var, _]), var(Var), A = Var, arg(2, Form, Form), B = Form.
+    arg(1, Form, Var), var(Var), A = Var, arg(2, Form, B).
 
 rule(Form, A, B, exists) :-
     compound(Form), functor(Form, Name, Arity), Name == exists, Arity == 2,
-    arg(1, Form, Var), var(Var), A = Var, arg(2, Form, Form), B = Form.
+    arg(1, Form, Var), var(Var), A = Var, arg(2, Form, B).
 
 apply(Form, Branch, New_Branch, _, _, _, _, nexists) :- no_sub_branch(Branch),!, rule(Form, Var, F, nexists), append(Branch, [F], New_Branch).
 apply(Form, Branch, New_Branch, _, _, _, _, nforall) :- no_sub_branch(Branch),!, rule(Form, Var, F, nforall), append(Branch, [F], New_Branch).
@@ -29,7 +31,7 @@ apply(Form, Branch, New_Branch, Constants, ToConsume, New_Constants, New_ToConsu
     no_sub_branch(Branch),!, rule(Form, Var, F, exists),
     generateConstant(Constants, New_Constants, New_Constant),
     replaceVariable(Var, New_Constant, F, NewForm),
-    append(Branch, [NewForm]], Branch_Temp).
+    append(Branch, [NewForm], Branch_Temp).
 
 %cas où la branche contient des sous branches
 apply(Form, Branch, New_Branch, Constants, New_Constants, Rule) :- 
