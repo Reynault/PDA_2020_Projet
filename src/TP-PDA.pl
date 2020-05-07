@@ -373,6 +373,30 @@ loop(Tree, ClosedTree, propositional) :-
     close_tree(TempTree, TempTree, TempTree3), !,
     loop(TempTree3, ClosedTree, propositional), !.
 
+% ----------------------------------------------------
+% Prédicats get_forall : prédicat qui permet de récupérer les forall
+% ----------------------------------------------------
+
+get_forall(Tree, Mult, Constants, Forall) :- get_forall(Tree, Mult, Constants, [], Forall).
+
+get_forall([], _, _, Forall, NewForall) :- NewForall = Forall.
+
+get_forall([First| Others], Mult, Constants, Forall, NewForall) :-
+    \+is_list(First),
+    rule(First, _, _, forall),
+    append(Forall, [map(First, Mult, Constants)], Tmp),
+    get_forall(Others, Mult, Constants, Tmp, NewForall).
+
+get_forall([First| Others], Mult, Constants, Forall, NewForall) :-
+    is_list(First),
+    find_sub_branches([First| Others], B1, B2),
+    find_sub_branches(Constants, C1, C2),
+
+    get_forall(B1, Mult, C1, [], Forall1),
+    get_forall(B2, Mult, C2, [], Forall2),
+
+    append(Forall, Forall1, Tmp),
+    append(Tmp, Forall2, NewForall).
 
 % ----------------------------------------------------
 % Prédicats get_all_constants : prédicat qui permet de récupérer les constantes
