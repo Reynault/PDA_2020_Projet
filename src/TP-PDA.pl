@@ -119,7 +119,7 @@ no_sub_branch([First|Others]) :- \+is_list(First), no_sub_branch(Others).
 % ----------------------------------------------------
 % Prédicat find_sub_branches: rend vrai si B1 et B2 sont les sous Branches de Branch
 % ----------------------------------------------------
-
+find_sub_branches([], _, _).
 find_sub_branches([First|Others], B1, B2) :- is_list(First), B1 = First, find_sub_branches(Others, B2).
 find_sub_branches([First|Others], B1, B2) :- \+is_list(First), find_sub_branches(Others, B1, B2).
 
