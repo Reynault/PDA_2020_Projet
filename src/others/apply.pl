@@ -1,0 +1,100 @@
+% ----------------------------------------------------
+% TP - PDA - Groupe : Brandon Hornbeck, Reynault Sies
+% ----------------------------------------------------
+
+% Fichier contenant les prédicats d'application des règles
+
+% ----------------------------------------------------
+% Prédicats apply: Permet d'appliquer une règle sur une formule
+% ----------------------------------------------------
+
+%cas simples où la branche ne contient pas de sous branche
+apply(Form, Branch, New_Branch, Constants, New_Constants,_, or) :- 
+    no_sub_branch(Branch),!,
+    rule(Form, F1, F2, or),
+    append(Branch, [[F1]], Branch_Temp),
+    append(Branch_Temp, [[F2]], New_Branch),
+
+    append(Constants, [Constants], Tmp_Const),
+    append(Tmp_Const, [Constants], New_Constants).
+
+apply(Form, Branch, New_Branch, Constants, Constants,_, nor):- 
+    no_sub_branch(Branch),!, rule(Form, F1, F2, nor), append(Branch, [not F1, not F2], New_Branch).
+
+apply(Form, Branch, New_Branch, Constants, Constants,_, and):- 
+    no_sub_branch(Branch),!, rule(Form, F1, F2, and), append(Branch, [F1, F2], New_Branch).
+
+apply(Form, Branch, New_Branch, Constants, New_Constants,_, nand):- 
+    no_sub_branch(Branch),!,
+    rule(Form, F1, F2, nand),
+    append(Branch, [[not F1]], Branch_Temp),
+    append(Branch_Temp, [[not F2]], New_Branch),
+
+    append(Constants, [Constants], Tmp_Const),
+    append(Tmp_Const, [Constants], New_Constants).
+
+apply(Form, Branch, New_Branch, Constants, New_Constants ,_, imp):- 
+    no_sub_branch(Branch),!,
+    rule(Form, F1, F2, imp),
+    append(Branch, [[not F1]], Branch_Temp),
+    append(Branch_Temp, [[F2]], New_Branch),
+
+    append(Constants, [Constants], Tmp_Const),
+    append(Tmp_Const, [Constants], New_Constants).
+
+apply(Form, Branch, New_Branch, Constants, Constants,_, nimp):- 
+    no_sub_branch(Branch),!, rule(Form, F1, F2, nimp), append(Branch, [F1, not F2], New_Branch).
+
+apply(Form, Branch, New_Branch, Constants, New_Constants, _, exists) :- 
+    no_sub_branch(Branch),!,
+    rule(Form, Var, F, exists),
+
+    count_constants(Constants, N),
+    generate_constant(Constants, N, New_Constant),
+    replace_var_by_const(F, Var, New_Constant, New_Form),
+
+    append(Branch, [New_Form], New_Branch),
+    append(Constants, [New_Constant], New_Constants).
+
+apply(Form, Branch, New_Branch, Constants, Constants, _, forall) :- 
+    no_sub_branch(Branch),!,
+    rule(Form, Var, F, forall),
+    arg(3, Form, Mult),
+    arg(4, Form, Consumed_Constants),
+    get_before_sub_branches(Constants, BeforeBranches),
+    subtract(BeforeBranches, Consumed_Constants, Constants_To_Consume),
+
+    consume_constants(F, Var, Constants_To_Consume, New_Forms),
+    append(Consumed_Constants, Constants_To_Consume, New_Constants),
+    New_Form = forall(Var, F, Mult, New_Constants),
+    replace_form_in_branch(Branch, Changed_Branch, Form, New_Form),
+    append(Changed_Branch, New_Forms, New_Branch).
+
+apply(Form, Branch, New_Branch, Constants, Constants, Mult, nexists) :- 
+    no_sub_branch(Branch),!,
+    rule(Form, Var, F, nexists),
+    New_Form = forall(Var, F, Mult, []),
+    append(Branch, [New_Form], New_Branch).
+
+apply(Form, Branch, New_Branch, Constants, Constants, _, nforall) :- 
+    no_sub_branch(Branch),!,
+    rule(Form, Var, F, nforall),
+    New_Form = exists(Var, F),
+    append(Branch, [New_Form], New_Branch).
+
+%cas où la branche contient des sous branches
+apply(Form, Branch, New_Branch, Constants, New_Constants, Mult, Rule) :- 
+    \+no_sub_branch(Branch), 
+    rule(Form, _, _, Rule), 
+
+    find_sub_branches(Branch, B1, B2), 
+    find_sub_branches(Constants, C1, C2),
+
+    apply(Form, B1, New_B1, C1, New_C1, Mult, Rule),
+    apply(Form, B2, New_B2, C2, New_C2, Mult, Rule),
+
+    replace_branch(Branch, TempBranch, B1, New_B1),
+    replace_branch(TempBranch, New_Branch, B2, New_B2),
+
+    replace_branch(Constants, TempConstants, C1, New_C1),
+    replace_branch(TempConstants, New_Constants, C2, New_C2).

@@ -15,5 +15,4 @@ solve([a => b, b => c, not (a => d)],2).
 solve([not(d & (a=>b))],2).
 solve([not a, not(d & (a=>b))],2).
 solve([(p v q) v r, p => (q & r), q => (not r)],2).
-
-% Tests pour la logique du premier ordre
+solve([],2).
