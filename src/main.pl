@@ -49,8 +49,8 @@ loop(Tree, _, _, Closed_Tree, _) :- conflict_exists(Tree), Closed_Tree = Tree.
 
 loop(Tree, Constants, Final_Constants, Closed_Tree, Mult) :-
     get_form(Tree, Tree, Constants, Form, C, Branch, Rule), !,
-    apply(Form, Branch, NewBranch, C, New_C, Mult, Rule),
-    mark_form(Form, NewBranch, MarkedBranch),
+    apply(Form, Branch, NewBranch, C, New_C, Mult, New_Form, Rule),
+    mark_form(New_Form, NewBranch, MarkedBranch),
 
     replace_branch(Tree, TempTree, Branch, MarkedBranch),
     replace_branch(Constants, TempConstants, C, New_C),

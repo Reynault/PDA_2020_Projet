@@ -9,7 +9,7 @@
 % ----------------------------------------------------
 
 %cas simples où la branche ne contient pas de sous branche
-apply(Form, Branch, New_Branch, Constants, New_Constants,_, or) :- 
+apply(Form, Branch, New_Branch, Constants, New_Constants,_, Form, or) :- 
     no_sub_branch(Branch),!,
     rule(Form, F1, F2, or),
     append(Branch, [[F1]], Branch_Temp),
@@ -18,13 +18,13 @@ apply(Form, Branch, New_Branch, Constants, New_Constants,_, or) :-
     append(Constants, [Constants], Tmp_Const),
     append(Tmp_Const, [Constants], New_Constants).
 
-apply(Form, Branch, New_Branch, Constants, Constants,_, nor):- 
-    no_sub_branch(Branch),!, rule(Form, F1, F2, nor), append(Branch, [not F1, not F2], New_Branch).
+apply(Form, Branch, New_Branch, Constants, Constants,_, Form, nor):- 
+    no_sub_branch(Branch),!, rule(Form, F1, F2, Form, nor), append(Branch, [not F1, not F2], New_Branch).
 
-apply(Form, Branch, New_Branch, Constants, Constants,_, and):- 
+apply(Form, Branch, New_Branch, Constants, Constants,_, Form, and):- 
     no_sub_branch(Branch),!, rule(Form, F1, F2, and), append(Branch, [F1, F2], New_Branch).
 
-apply(Form, Branch, New_Branch, Constants, New_Constants,_, nand):- 
+apply(Form, Branch, New_Branch, Constants, New_Constants,_, Form, nand):- 
     no_sub_branch(Branch),!,
     rule(Form, F1, F2, nand),
     append(Branch, [[not F1]], Branch_Temp),
@@ -33,7 +33,7 @@ apply(Form, Branch, New_Branch, Constants, New_Constants,_, nand):-
     append(Constants, [Constants], Tmp_Const),
     append(Tmp_Const, [Constants], New_Constants).
 
-apply(Form, Branch, New_Branch, Constants, New_Constants ,_, imp):- 
+apply(Form, Branch, New_Branch, Constants, New_Constants ,_, Form, imp):- 
     no_sub_branch(Branch),!,
     rule(Form, F1, F2, imp),
     append(Branch, [[not F1]], Branch_Temp),
@@ -42,10 +42,10 @@ apply(Form, Branch, New_Branch, Constants, New_Constants ,_, imp):-
     append(Constants, [Constants], Tmp_Const),
     append(Tmp_Const, [Constants], New_Constants).
 
-apply(Form, Branch, New_Branch, Constants, Constants,_, nimp):- 
+apply(Form, Branch, New_Branch, Constants, Constants,_, Form, nimp):- 
     no_sub_branch(Branch),!, rule(Form, F1, F2, nimp), append(Branch, [F1, not F2], New_Branch).
 
-apply(Form, Branch, New_Branch, Constants, New_Constants, _, exists) :- 
+apply(Form, Branch, New_Branch, Constants, New_Constants, _, Form, exists) :- 
     no_sub_branch(Branch),!,
     rule(Form, Var, F, exists),
 
@@ -56,7 +56,7 @@ apply(Form, Branch, New_Branch, Constants, New_Constants, _, exists) :-
     append(Branch, [New_Form], New_Branch),
     append(Constants, [New_Constant], New_Constants).
 
-apply(Form, Branch, New_Branch, Constants, New_Constants, _, forall) :- 
+apply(Form, Branch, New_Branch, Constants, New_Constants, _, New_Forall, forall) :- 
     no_sub_branch(Branch),!,
     rule(Form, Var, F, forall),
     arg(3, Form, Mult),
@@ -90,28 +90,28 @@ apply(Form, Branch, New_Branch, Constants, New_Constants, _, forall) :-
         New_Constants = Constants
     ).
 
-apply(Form, Branch, New_Branch, Constants, Constants, Mult, nexists) :- 
+apply(Form, Branch, New_Branch, Constants, Constants, Mult, Form, nexists) :- 
     no_sub_branch(Branch),!,
     rule(Form, Var, F, nexists),
     New_Form = forall(Var, F, Mult, []),
     append(Branch, [New_Form], New_Branch).
 
-apply(Form, Branch, New_Branch, Constants, Constants, _, nforall) :- 
+apply(Form, Branch, New_Branch, Constants, Constants, _, Form, nforall) :- 
     no_sub_branch(Branch),!,
     rule(Form, Var, F, nforall),
     New_Form = exists(Var, F),
     append(Branch, [New_Form], New_Branch).
 
 %cas où la branche contient des sous branches
-apply(Form, Branch, New_Branch, Constants, New_Constants, Mult, Rule) :- 
+apply(Form, Branch, New_Branch, Constants, New_Constants, Mult, New_Form,  Rule) :- 
     \+no_sub_branch(Branch), 
     rule(Form, _, _, Rule), 
 
     find_sub_branches(Branch, B1, B2), 
     find_sub_branches(Constants, C1, C2),
 
-    apply(Form, B1, New_B1, C1, New_C1, Mult, Rule),
-    apply(Form, B2, New_B2, C2, New_C2, Mult, Rule),
+    apply(Form, B1, New_B1, C1, New_C1, Mult, New_Form, Rule),
+    apply(Form, B2, New_B2, C2, New_C2, Mult, New_Form, Rule),
 
     replace_branch(Branch, TempBranch, B1, New_B1),
     replace_branch(TempBranch, New_Branch, B2, New_B2),
