@@ -92,14 +92,23 @@ apply(Form, Branch, New_Branch, Constants, New_Constants, _, New_Forall, forall)
 
 apply(Form, Branch, New_Branch, Constants, Constants, Mult, Form, nexists) :- 
     no_sub_branch(Branch),!,
-    rule(Form, Var, F, nexists),
-    New_Form = forall(Var, not F, Mult, []),
+    (
+        (rule(Form, Var, F, nexists),
+    New_Form = forall(Var, not F, Mult, []));
+        (rule(Form, Var, not F, nexists),
+    New_Form = forall(Var, F, Mult, []))
+    ),
+    
     append(Branch, [New_Form], New_Branch).
 
 apply(Form, Branch, New_Branch, Constants, Constants, _, Form, nforall) :- 
     no_sub_branch(Branch),!,
-    rule(Form, Var, not F, nforall),
-    New_Form = exists(Var, F),
+    (
+        (rule(Form, Var, not F, nforall),
+    New_Form = exists(Var, F));
+        (rule(Form, Var, F, nforall),
+    New_Form = exists(Var, not F))
+    ),
     append(Branch, [New_Form], New_Branch).
 
 %cas où la branche contient des sous branches

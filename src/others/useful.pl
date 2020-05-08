@@ -268,6 +268,26 @@ replace_var_by_const(Form, Var, Const, New_Form) :-
         )
     ).
 
+replace_var_by_const(not Form, Var, Const, New_Form) :-
+    rule(Form, Var2, F, Rule),
+    is_composed(Rule),
+    (
+        same_term(Var2, Var), New_Form =  not Form
+        ;
+        \+same_term(Var2, Var),
+        (
+            (Rule == forall; Rule == nforall),
+            arg(3, Form, Mult),
+            arg(4, Form, Constants),
+            replace_var_by_const(F, Var, Const, New_F),
+            recreate_formula(Var2, not New_F, Mult, Constants, Rule, New_Form)
+            ;
+            Rule \= forall, Rule \= nforall,
+            replace_var_by_const(F, Var, Const, New_F),
+            recreate_formula(Var2, New_F, _, [], Rule, New_Form)
+        )
+    ).    
+
 replace_var_by_const(Form, Var, Const, New_Form) :-
     rule(Form, A, B, Rule),
     \+is_composed(Rule),
