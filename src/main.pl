@@ -122,6 +122,8 @@ close_conflicts(TreeBeginning, [First| Others], Form, ClosedTree) :-
     close_conflicts(B2, B2, Form, ClosedB2), !,
     concat_and_close_new_tree(TreeBeginning, ClosedB1, ClosedB2, ClosedTree).
 
+    
+
 % ----------------------------------------------------
 % Prédicat is_conflict permet de vérifier si un conflit existe entre deux formules
 % ----------------------------------------------------
