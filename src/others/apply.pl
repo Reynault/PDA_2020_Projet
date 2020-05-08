@@ -84,8 +84,8 @@ apply(Form, Branch, New_Branch, Constants, New_Constants, _, New_Forall, forall)
         % Consuming constants
         consume_constants(F, Var, Constants_To_Consume, New_Forms),
         append(Consumed_Constants, Constants_To_Consume, New_Constants_For_Form),
-        New_Form = forall(Var, F, Mult, New_Constants_For_Form),
-        replace_form_in_branch(Branch, Changed_Branch, Form, New_Form),
+        New_Forall = forall(Var, F, Mult, New_Constants_For_Form),
+        replace_form_in_branch(Branch, Changed_Branch, Form, New_Forall),
         append(Changed_Branch, New_Forms, New_Branch),
         New_Constants = Constants
     ).
