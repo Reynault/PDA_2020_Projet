@@ -20,10 +20,8 @@ rule(Form, A, B, nand) :- \+var(Form), Form = not (A & B).
 rule(Form, A, B, imp) :- \+var(Form), Form = A => B.
 rule(Form, A, B, nimp) :- \+var(Form), Form = not (A => B).
 
-rule(CF, A, B, nforall) :- \+var(CF), CF = not Form, rule(Form, A, B, forall).
+rule(CF, A, B, nforall) :- \+var(CF), CF = not Form, (rule(Form, A, B, forall);rule(Form, A, B, unparsedForall)).
 rule(CF, A, B, nexists) :- \+var(CF), CF = not Form, rule(Form, A, B, exists).
-%rule(CF, A, B, nforall) :- \+var(CF), CF = not Form, rule(Form, A, B1, forall), B1 == not F, B = F.
-%rule(CF, A, B, nexists) :- \+var(CF), CF = not Form, rule(Form, A, B1, exists), B1 == not F, B = F.
 
 rule(Form, A, B, forall) :-
     \+var(Form), 

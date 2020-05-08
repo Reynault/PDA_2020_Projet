@@ -19,8 +19,10 @@ check_propositionnal([First| Other]) :-
 
 check_propositionnal([First| Other]) :-
     \+is_list(First),
-    \+rule(First, _, _, _),
-    atomic(First),
+    rule(First, A, B, Rule),
+    \+is_composed(Rule),
+    check_propositionnal(A),
+    check_propositionnal(B),
     check_propositionnal(Other).
 
 check_propositionnal([First| Other]) :-

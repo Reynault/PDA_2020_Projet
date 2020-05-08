@@ -11,6 +11,31 @@ le TP comporte deux parties : l'implantation de la méthode pour le
 calcul propositionnel et ensuite l'implantation de la méthode pour le
 calcul des prédicats du premier ordre.
 
+## Utilisation du projet
+
+Pour utiliser le code Prolog développé, il faut consulter le fichier main.pl qui contient
+toutes les fonctionnalités demandées, à savoir, la méthode des tableaux sémantiques.
+
+Pour la logique propositionnelle, on peut exécuter le programme avec:
+
+```
+solve(Tree, propositionnal).
+```
+
+Pour la logique du premier ordre, on peut exécuter le programme avec:
+
+```
+solve(Tree, Mult, first_order).
+```
+
+Avec Tree un arbre de la forme suivante:
+
+```
+Tree = [a v b, a => b, ....]
+```
+
+Et mult un entier correspondant à la multiplicité.
+
 ## Rendu
 
 Le dossier de rendu du TP comportera
