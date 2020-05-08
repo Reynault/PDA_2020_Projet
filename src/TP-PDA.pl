@@ -53,28 +53,35 @@ echo(_).
 % à la formule
 % ----------------------------------------------------
 
-rule(Form, A, marked) :- Form = marked (A).
+rule(Form, A, marked) :- \+var(Form), Form = marked (A).
 
-rule(Form, A, B, or) :- Form = A v B.
-rule(Form, A, B, nor) :- Form = not (A v B).
+rule(Form, A, B, or) :- \+var(Form), Form = A v B.
+rule(Form, A, B, nor) :- \+var(Form), Form = not (A v B).
 
-rule(Form, A, B, and) :- Form = A & B.
-rule(Form, A, B, nand) :- Form = not (A & B).
+rule(Form, A, B, and) :- \+var(Form), Form = A & B.
+rule(Form, A, B, nand) :- \+var(Form), Form = not (A & B).
 
-rule(Form, A, B, imp) :- Form = A => B.
-rule(Form, A, B, nimp) :- Form = not (A => B).
+rule(Form, A, B, imp) :- \+var(Form), Form = A => B.
+rule(Form, A, B, nimp) :- \+var(Form), Form = not (A => B).
 
-rule(not Form, A, B, nforall) :- rule(Form, A, B1, forall), B1 \= not F, B = not B1.
-rule(not Form, A, B, nexists) :- rule(Form, A, B1, exists), B1 \= not F, B = not B1.
-rule(not Form, A, B, nforall) :- rule(Form, A, B1, forall), B1 = not F, B = F.
-rule(not Form, A, B, nexists) :- rule(Form, A, B1, exists), B1 = not F, B = F.
+rule(CF, A, B, nforall) :- \+var(CF), CF = not Form, rule(Form, A, B1, forall), B1 \= not F, B = not B1.
+rule(CF, A, B, nexists) :- \+var(CF), CF = not Form, rule(Form, A, B1, exists), B1 \= not F, B = not B1.
+rule(CF, A, B, nforall) :- \+var(CF), CF = not Form, rule(Form, A, B1, forall), B1 == not F, B = F.
+rule(CF, A, B, nexists) :- \+var(CF), CF = not Form, rule(Form, A, B1, exists), B1 == not F, B = F.
 
 rule(Form, A, B, forall) :-
-    compound(Form), functor(Form, Name, Arity), Name == forall, Arity == 2,
+    \+var(Form), 
+    compound(Form), functor(Form, Name, Arity), Name == forall, Arity == 4,
     arg(1, Form, Var), var(Var), A = Var, arg(2, Form, B).
 
 rule(Form, A, B, exists) :-
+    \+var(Form), 
     compound(Form), functor(Form, Name, Arity), Name == exists, Arity == 2,
+    arg(1, Form, Var), var(Var), A = Var, arg(2, Form, B).
+
+rule(Form, A, B, unparsedForall) :-
+    \+var(Form), 
+    compound(Form), functor(Form, Name, Arity), Name == forall, Arity == 2,
     arg(1, Form, Var), var(Var), A = Var, arg(2, Form, B).
 
 % ----------------------------------------------------
@@ -82,32 +89,94 @@ rule(Form, A, B, exists) :-
 % ----------------------------------------------------
 
 %cas simples où la branche ne contient pas de sous branche
-apply(Form, Branch, New_Branch, _, _, _, _, or) :- no_sub_branch(Branch),!, rule(Form, F1, F2, or), append(Branch, [[F1]], Branch_Temp), append(Branch_Temp, [[F2]], New_Branch).
-apply(Form, Branch, New_Branch, _, _, _, _, nor):- no_sub_branch(Branch),!, rule(Form, F1, F2, nor), append(Branch, [not F1, not F2], New_Branch).
+apply(Form, Branch, New_Branch, Constants, New_Constants,_, or) :- 
+    no_sub_branch(Branch),!,
+    rule(Form, F1, F2, or),
+    append(Branch, [[F1]], Branch_Temp),
+    append(Branch_Temp, [[F2]], New_Branch),
 
-apply(Form, Branch, New_Branch, _, _, _, _, and):- no_sub_branch(Branch),!, rule(Form, F1, F2, and), append(Branch, [F1, F2], New_Branch).
-apply(Form, Branch, New_Branch, _, _, _, _, nand):- no_sub_branch(Branch),!, rule(Form, F1, F2, nand), append(Branch, [[not F1]], Branch_Temp), append(Branch_Temp, [[not F2]], New_Branch).
+    get_before_sub_branches(Constants, Before_Branches),
+    append(Constants, [Constants], Tmp_Const),
+    append(Tmp_Const, [Constants], New_Constants).
 
-apply(Form, Branch, New_Branch, _, _ ,_ ,_, imp):- no_sub_branch(Branch),!, rule(Form, F1, F2, imp), append(Branch, [[not F1]], Branch_Temp), append(Branch_Temp, [[F2]], New_Branch).
-apply(Form, Branch, New_Branch, _, _, _, _, nimp):- no_sub_branch(Branch),!, rule(Form, F1, F2, nimp), append(Branch, [F1, not F2], New_Branch).
-apply(Form, Branch, New_Branch, Constants, ToConsume, New_Constants, New_ToConsume, exists) :- no_sub_branch(Branch),!, rule(Form, Var, F, exists), count_constants(Constants, N),
-NameConstant is N+1, Var = NameConstant, append(Branch, [Form], New_Branch), append(Constants, [NameConstant], New_Constants).
+apply(Form, Branch, New_Branch, Constants, Constants,_, nor):- 
+    no_sub_branch(Branch),!, rule(Form, F1, F2, nor), append(Branch, [not F1, not F2], New_Branch).
+
+apply(Form, Branch, New_Branch, Constants, Constants,_, and):- 
+    no_sub_branch(Branch),!, rule(Form, F1, F2, and), append(Branch, [F1, F2], New_Branch).
+
+apply(Form, Branch, New_Branch, Constants, New_Constants,_, nand):- 
+    no_sub_branch(Branch),!,
+    rule(Form, F1, F2, nand),
+    append(Branch, [[not F1]], Branch_Temp),
+    append(Branch_Temp, [[not F2]], New_Branch),
+    append(Constants, [Constants], Tmp_Const),
+    append(Tmp_Const, [Constants], New_Constants).
+apply(Form, Branch, New_Branch, Constants, New_Constants ,_, imp):- 
+    no_sub_branch(Branch),!,
+    rule(Form, F1, F2, imp),
+    append(Branch, [[not F1]], Branch_Temp),
+    append(Branch_Temp, [[F2]], New_Branch),
+
+    append(Constants, [Constants], Tmp_Const),
+    append(Tmp_Const, [Constants], New_Constants).
+
+apply(Form, Branch, New_Branch, Constants, Constants,_, nimp):- 
+    no_sub_branch(Branch),!, rule(Form, F1, F2, nimp), append(Branch, [F1, not F2], New_Branch).
+
+apply(Form, Branch, New_Branch, Constants, New_Constants, _, exists) :- 
+    no_sub_branch(Branch),!,
+    rule(Form, Var, F, exists),
+
+    count_constants(Constants, N),
+    generate_constant(Constants, N, New_Constant),
+    replace_var_by_const(F, Var, New_Constant, New_Form),
+
+    append(Branch, [New_Form], New_Branch),
+    append(Constants, [New_Constant], New_Constants).
+
+apply(Form, Branch, New_Branch, Constants, Constants, _, forall) :- 
+    no_sub_branch(Branch),!,
+    rule(Form, Var, F, forall),
+    arg(3, Form, Mult),
+    arg(4, Form, Consumed_Constants),
+    get_before_sub_branches(Constants, BeforeBranches),
+    subtract(BeforeBranches, Consumed_Constants, Constants_To_Consume),
+
+    consume_constants(F, Var, Constants_To_Consume, New_Forms),
+    append(Consumed_Constants, Constants_To_Consume, New_Constants),
+    New_Form = forall(Var, F, Mult, New_Constants),
+    replace_form_in_branch(Branch, Changed_Branch, Form, New_Form),
+    append(Changed_Branch, New_Forms, New_Branch).
+
+apply(Form, Branch, New_Branch, Constants, Constants, Mult, nexists) :- 
+    no_sub_branch(Branch),!,
+    rule(Form, Var, F, nexists),
+    New_Form = forall(Var, F, Mult, []),
+    append(Branch, [New_Form], New_Branch).
+
+apply(Form, Branch, New_Branch, Constants, Constants, Mult, nforall) :- 
+    no_sub_branch(Branch),!,
+    rule(Form, Var, F, nforall),
+    New_Form = exists(Var, F),
+    append(Branch, [New_Form], New_Branch).
+
 %cas où la branche contient des sous branches
-apply(Form, Branch, New_Branch, Constants, ToConsume, New_Constants, New_ToConsume, Rule) :- 
+apply(Form, Branch, New_Branch, Constants, New_Constants, Mult, Rule) :- 
     \+no_sub_branch(Branch), 
     rule(Form, _, _, Rule), 
+
     find_sub_branches(Branch, B1, B2), 
     find_sub_branches(Constants, C1, C2),
-    apply(Form, B1, NB1, C1, ToConsume, NC1, New_ToConsume, Rule), 
-    apply(Form, B2, NB2, C2, ToConsume, NC2, New_ToConsume, Rule),
-    remove(B1, Branch, Branch_Temp1), remove(B2, Branch_Temp1, Branch_Temp2),
-    append(Branch_Temp2, [NB1], Branch_Temp3), append(Branch_Temp3, [NB2], New_Branch),
-    remove(C1, Constants, Constants_Temp1), remove(C2, Constants_Temp1, Constants_Temp2),
-    append(Constants_Temp2, [NC1], Constants_Temp3), append(Constants_Temp3, [NC2], New_Constants).
 
+    apply(Form, B1, New_B1, C1, New_C1, Mult, Rule),
+    apply(Form, B2, New_B2, C2, New_C2, Mult, Rule),
 
-test(Tree, Sub1, Sub2, C, C1, C2):- find_sub_branches(Tree, Sub1, Sub2), find_sub_branches(C, C1, C2).
+    replace_branch(Branch, TempBranch, B1, New_B1),
+    replace_branch(TempBranch, New_Branch, B2, New_B2),
 
+    replace_branch(Constants, TempConstants, C1, New_C1),
+    replace_branch(TempConstants, New_Constants, C2, New_C2).
 
 % ----------------------------------------------------
 % Prédicat no_sub_branch: rend vrai si la branche n'a pas de sous branche
@@ -119,7 +188,7 @@ no_sub_branch([First|Others]) :- \+is_list(First), no_sub_branch(Others).
 % ----------------------------------------------------
 % Prédicat find_sub_branches: rend vrai si B1 et B2 sont les sous Branches de Branch
 % ----------------------------------------------------
-find_sub_branches([], _, _).
+find_sub_branches([], [], []).
 find_sub_branches([First|Others], B1, B2) :- is_list(First), B1 = First, find_sub_branches(Others, B2).
 find_sub_branches([First|Others], B1, B2) :- \+is_list(First), find_sub_branches(Others, B1, B2).
 
@@ -173,7 +242,7 @@ get_position_in_tree([First| Others], Form, Position) :-
 
 remove(_, [], []).
 remove(List, List, []).
-remove(X, [X|Others], R1) :- remove(X, Others, R1).
+remove(X, [X|Others], R1) :- R1 = Others.
 remove(X, [Y|Others], R1) :- X \== Y, length(Others, N), N > 0, remove(X, Others, R2), append([Y], R2, R1).
 remove(X, [Y|Others], R1) :- X \== Y, length(Others, 0), R1 = [Y].
 
@@ -181,9 +250,28 @@ remove(X, [Y|Others], R1) :- X \== Y, length(Others, 0), R1 = [Y].
 % Prédicats utilitaires
 % ----------------------------------------------------
 
+consume_constants(Form, Var, [], New_Forms) :- New_Forms = [].
+
+consume_constants(Form, Var, [First| Others], New_Forms) :-
+    replace_var_by_const(Form, Var,First, New_Form),
+    consume_constants(Form, Var, Others, NF),
+    append([New_Form], NF, New_Forms).
+
+generate_constant(Constants, Nb_Constants, New_C) :-
+    New_Constant is Nb_Constants + 1,
+    contains_constant(Constants, New_Constant),
+    generate_constant(Constants, New_Constant, New_C).
+
+generate_constant(Constants, Nb_Constants, New_C) :-
+    New_C is Nb_Constants + 1, \+contains_constant(Constants, New_C).
+
 count_constants([], 0).
 count_constants([First|Others], NbConstants):- \+is_list(First), count_constants(Others, NB), NbConstants is NB+1.
 count_constants([First|Others], NbConstants):- is_list(First), count_constants(First, NB1), count_constants(Others, NB2), NbConstants is NB1+NB2.
+
+contains_constant([First| Others], C) :- \+is_list(First), (First == C; First \= C, contains_constant(Others, C)).
+contains_constant([First| Others], C) :- is_list(First), find_sub_branches([First| Others], B1, _), contains_constant(B1, C).
+contains_constant([First| Others], C) :- is_list(First), find_sub_branches([First| Others], _, B2), contains_constant(B2, C).
 
 isEmpty([]).
 
@@ -207,6 +295,8 @@ replace_branch([First|Others], NewTree, Branch, NewBranch):-
     append([First], TempNewTree, NewTree).
 
 
+
+
 %cas ou First est une liste, qui n'est pas la branche (vu que l'arbre ne la contient pas)
 replace_branch([First|Others], NewTree, Branch, NewBranch):-
     is_list(First),
@@ -219,6 +309,31 @@ replace_branch([First|Others], NewTree, Branch, NewBranch):-
     \+replace_branch(First, _, Branch, NewBranch),
     replace_branch(Others, TempTree, Branch, NewBranch),
     NewTree = [First|TempTree].
+
+
+replace_form_in_branch(Form, New_Form, Form, New_Form).
+
+replace_form_in_branch([First|Others], Changed_Branch, Form, New_Form) :-
+    is_list(First),
+    replace_form_in_branch(First, TempTree, Form, New_Form),
+    Changed_Branch = [TempTree| Others].
+
+replace_form_in_branch([First|Others], Changed_Branch, Form, New_Form) :-
+    is_list(First),
+    \+replace_form_in_branch(First, _, Form, New_Form),
+    replace_branch(Others, TempTree, Form, New_Form),
+    Changed_Branch = [First| TempTree].
+
+replace_form_in_branch([First|Others], Changed_Branch, Form, New_Form) :-
+    \+is_list(First),
+    (
+        \+(First == Form),
+        replace_form_in_branch(Others, Changed, Form, New_Form),
+        append([First], Changed, Changed_Branch)
+        ;
+        First == Form,
+        append([New_Form], Others, Changed_Branch)
+    ).
 
 % permet de reformer un arbre avec la branche principale et les deux sous branches
 concat_and_close_new_tree(TreeBeginning, B1, B2, NewTree) :-
@@ -312,105 +427,242 @@ conflict_exists([conflict| _]).
 % Prédicat de récupération de la formule sur laquelle on veut travailler
 % ----------------------------------------------------
 
-
-get_form([First| Others], TreeBeginning, Form, Branch, Rule, propositional) :-
+get_form([First| Others], TreeBeginning, Constants, Form, C, Branch, Rule) :-
     \+is_list(First),
     \+rule(First, _, marked),
     First \= conflict,
     \+rule(First, _, _, Rule),
-    get_form(Others, TreeBeginning, Form, Branch, Rule, propositional).
+    get_form(Others, TreeBeginning, Constants, Form, C, Branch, Rule).
 
-get_form([First| _], TreeBeginning, Form, Branch, Rule, propositional) :-
+get_form([First| Others], TreeBeginning, Constants, Form, C, Branch, Rule) :-
     \+is_list(First),
     \+rule(First, _, marked),
     First \= conflict,
+    rule(First, _, _, forall),
+    arg(3, First, Mult),
+    Mult > 0,
+    \+get_form(Others, TreeBeginning, Constants, Form, C, Branch, Rule),
     Branch = TreeBeginning,
     Form = First,
+    C = Constants,
+    Rule = forall.
+
+get_form([First| Others], TreeBeginning, Constants, Form, C, Branch, Rule) :-
+    \+is_list(First),
+    \+rule(First, _, marked),
+    First \= conflict,
+    rule(First, _, _, forall),
+    get_form(Others, TreeBeginning, Constants, Form, C, Branch, Rule).
+
+get_form([First| _], TreeBeginning, Constants, Form, C, Branch, Rule) :-
+    \+is_list(First),
+    \+rule(First, _, marked),
+    \+rule(First, _, _, forall),
+    First \= conflict,
+    Branch = TreeBeginning,
+    Form = First,
+    C = Constants,
     rule(Form, _, _, Rule).
 
-get_form([First| Others], TreeBeginning, Form, Branch, Rule, propositional) :-
+get_form([First| Others], TreeBeginning, Constants, Form, C, Branch, Rule) :-
     \+is_list(First),
     rule(First, _, marked),
-    get_form(Others, TreeBeginning, Form, Branch, Rule, propositional), !.
+    get_form(Others, TreeBeginning, Constants, Form, C, Branch, Rule), !.
 
-get_form([First| Others], _, Form, Branch, Rule, propositional) :-
-    is_list(First),
-    find_sub_branches([First| Others], B1, _),
-    \+conflict_exists(B1),
-    get_form(B1, B1, Form, Branch, Rule, propositional), !.
-
-get_form([First| Others], _, Form, Branch, Rule, propositional) :-
-    is_list(First),
-    find_sub_branches([First| Others], _, B2),
-    \+conflict_exists(B2),
-    get_form(B2, B2, Form, Branch, Rule, propositional), !.
-
-% ----------------------------------------------------
-% Prédicat d'ajout d'une formule déjà utilisée dans un tableau de formules marquées
-% ----------------------------------------------------
-
-mark_Form(Form, [First| Others], New_Marked) :-
-    \+is_list(First),
-    \+Form == First,
-    mark_Form(Form, Others, Tmp),
-    append([First], Tmp, New_Marked).
-
-mark_Form(Form, [First| Others], New_Marked) :-
-    \+is_list(First),
-    Form == First,
-    New_Form = marked (Form),
-    append([New_Form], Others,New_Marked).
-
-% ----------------------------------------------------
-% Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
-% ----------------------------------------------------
-
-solve(Tree) :- 
-    clr_echo,
-    close_tree(Tree, Tree, TempTree), !,
-    loop(TempTree, ClosedTree, propositional),!,
-
-    set_echo,
-    display_tree(ClosedTree),!.
-
-% ----------------------------------------------------
-% Prédicats loop pour la logique propositionnelle
-% ----------------------------------------------------
-
-loop(Tree, ClosedTree, _) :- conflict_exists(Tree), ClosedTree = Tree.
-
-loop(Tree, ClosedTree, propositional) :-
-    get_form(Tree, Tree, Form, Branch, Rule, propositional), !,
-    apply(Form, Branch, NewBranch, _, _, _, _, Rule),
-    mark_Form(Form, NewBranch, MarkedBranch),
-    replace_branch(Tree, TempTree, Branch, MarkedBranch),
-    close_tree(TempTree, TempTree, TempTree3), !,
-    loop(TempTree3, ClosedTree, propositional), !.
-
-% ----------------------------------------------------
-% Prédicats get_forall : prédicat qui permet de récupérer les forall
-% ----------------------------------------------------
-
-get_forall(Tree, Mult, Constants, Forall) :- get_forall(Tree, Mult, Constants, [], Forall).
-
-get_forall([], _, _, Forall, NewForall) :- NewForall = Forall.
-
-get_forall([First| Others], Mult, Constants, Forall, NewForall) :-
-    \+is_list(First),
-    rule(First, _, _, forall),
-    append(Forall, [map(First, Mult, Constants)], Tmp),
-    get_forall(Others, Mult, Constants, Tmp, NewForall).
-
-get_forall([First| Others], Mult, Constants, Forall, NewForall) :-
+get_form([First| Others], _, Constants, Form, C, Branch, Rule) :-
     is_list(First),
     find_sub_branches([First| Others], B1, B2),
     find_sub_branches(Constants, C1, C2),
+    \+conflict_exists(B1),
+    get_form(B1, B1, C1, Form, C, Branch, Rule), !.
 
-    get_forall(B1, Mult, C1, [], Forall1),
-    get_forall(B2, Mult, C2, [], Forall2),
+get_form([First| Others], _, Constants, Form, C, Branch, Rule) :-
+    is_list(First),
+    find_sub_branches([First| Others], _, B2),
+    find_sub_branches(Constants, _, C2),
+    \+conflict_exists(B2),
+    get_form(B2, B2, C2, Form, C, Branch, Rule), !.
 
-    append(Forall, Forall1, Tmp),
-    append(Tmp, Forall2, NewForall).
+% ----------------------------------------------------
+% Prédicat de marquage des formules utilisées
+% ----------------------------------------------------
+
+mark_form(Form, [First| Others], New_Marked) :-
+    \+is_list(First),
+    \+Form == First,
+    mark_form(Form, Others, Tmp),
+    append([First], Tmp, New_Marked).
+
+mark_form(Form, [First| Others], New_Marked) :-
+    \+is_list(First),
+    \+rule(Form, _, _, forall),
+    Form == First,
+    New_Form = marked (Form),
+    append([New_Form], Others, New_Marked).
+
+mark_form(Form, [First| Others], New_Marked) :-
+    \+is_list(First),
+    Form == First,
+    rule(Form, Var, F, forall),
+    arg(3, Form, Mult),
+    arg(4, Form, Const),
+
+    New_Mult is Mult - 1,
+    Tmp = forall(Var, F, New_Mult, Const),
+
+    (
+        New_Mult == 0, New_Form = marked (Tmp)
+        ;
+        New_Form = Tmp
+    ),
+    append([New_Form], Others, New_Marked).
+
+% ----------------------------------------------------
+% Prédicats check_free_var_in_tree rend vrai s'il n'y a pas de variables libres dans l'arbre
+% ----------------------------------------------------
+
+check_free_var_in_tree(Var) :-
+    var(Var), fail.
+
+check_free_var_in_tree(Tree) :- Tree == [].
+
+check_free_var_in_tree([First| Others]) :-
+    \+var(First),
+    \+is_list(First),
+    check_free_var_in_formula(First, []),
+    check_free_var_in_tree(Others).
+
+check_free_var_in_tree([First| Others]) :-
+    is_list(First),
+    find_sub_branches([First| Others], B1, B2),
+    check_free_var_in_tree(B1),
+    check_free_var_in_tree(B2).
+
+% ----------------------------------------------------
+% Prédicats check_free_var_in_formula rend vrai s'il n'y a pas de variables libres dans la formule
+% ----------------------------------------------------
+
+check_free_var_in_formula(Form, Closed_Var) :-
+    var(Form), is_close(Form, Closed_Var).
+
+check_free_var_in_formula(Form, Closed_Var) :-
+    \+var(Form),
+    \+rule(Form, _, _, _),
+    check_free_var_in_function(Form, Closed_Var).
+
+check_free_var_in_formula(Form, Closed_Var) :- 
+    \+var(Form),
+    \+rule(Form, _, _, _),
+    check_free_var_in_function(Form, Closed_Var).
+
+check_free_var_in_formula(Form, Closed_Var) :-
+    \+var(Form),
+    rule(Form, A, B, Rule),
+    Rule \= unparsedForall, Rule \= forall, Rule \= nforall, Rule \= exists, Rule \= nexists,
+    check_free_var_in_formula(A, Closed_Var),
+    check_free_var_in_formula(B, Closed_Var).
+
+check_free_var_in_formula(Form, Closed_Var) :-
+    \+var(Form),
+    rule(Form, A, B, Rule),
+    (Rule == unparsedForall; Rule == forall; Rule == nforall; Rule == exists; Rule == nexists),
+    append([A], Closed_Var, New_Closed_Var),
+    check_free_var_in_formula(B, New_Closed_Var).
+
+
+% ----------------------------------------------------
+% Prédicats check_free_var_in_function rend vrai s'il n'y a pas de variables libres dans une fonction
+% ----------------------------------------------------
+
+check_free_var_in_function(Form, _) :- atomic(Form).
+check_free_var_in_function(Form, Closed_Var) :- var(Form), is_close(Form, Closed_Var).
+check_free_var_in_function(Form, Closed_Var) :- 
+    compound(Form), 
+    compound_name_arguments(Form, _, [F| A]), 
+    check_free_var_in_arguments([F| A], Closed_Var).
+
+% ----------------------------------------------------
+% Prédicats check_free_var_in_arguments rend vrai s'il n'y a pas de variables libres dans une liste
+% d'arguments
+% ----------------------------------------------------
+
+check_free_var_in_arguments([], _).
+check_free_var_in_arguments([First| _], Closed_Var) :- var(First), is_close(First, Closed_Var).
+check_free_var_in_arguments([First| Others], Closed_Var) :- atomic(First), check_free_var_in_arguments(Others, Closed_Var).
+check_free_var_in_arguments([First| Others], Closed_Var) :- 
+    compound(First), 
+    check_free_var_in_function(First, Closed_Var), 
+    check_free_var_in_arguments(Others, Closed_Var).
+
+is_close(V, [First| Others]) :- 
+    (
+        V == First
+        ;
+        V \= First, is_close(V, Others)
+    ).
+
+% ----------------------------------------------------
+% Prédicats format_form_in_tree : prédicat qui permet de formater les formules dans l'arbre
+% ----------------------------------------------------
+
+format_form_in_tree([], _, New_Tree) :- New_Tree = [].
+
+format_form_in_tree([First| Others], Mult, New_Tree) :-
+    \+is_list(First),
+    format_formula(First, Mult, New_Form),
+    format_form_in_tree(Others, Mult, NT),
+    append([New_Form], NT, New_Tree).
+
+format_form_in_tree([First| Others], Mult, New_Tree) :-
+    is_list(First),
+    find_sub_branches([First| Others], B1, B2),
+    format_form_in_tree(B1, Mult, NewB1),
+    format_form_in_tree(B2, Mult, NewB2),
+    append([NewB1], [NewB2], New_Tree).
+
+% ----------------------------------------------------
+% Prédicats format_formula : prédicat qui permet de formater une formule
+% ----------------------------------------------------
+
+format_formula(Form, _, New_Form) :-
+    var(Form),
+    New_Form = Form.
+
+format_formula(Form, _, New_Form) :-
+    \+rule(Form, _, _, _),
+    New_Form = Form.
+
+format_formula(Form, Mult, New_Form) :-
+    rule(Form, A, B, Rule),
+    Rule \= unparsedForall, Rule \= forall, Rule \= nforall, Rule \= exists, Rule \= nexists,
+    format_formula(A, Mult, NewA),
+    format_formula(B, Mult, NewB),
+    recreate_formula(NewA, NewB, Mult, [], Rule, New_Form).
+
+format_formula(Form, Mult, New_Form) :-
+    rule(Form, A, B, Rule),
+    (Rule == unparsedForall; Rule == forall; Rule == nforall; Rule == exists; Rule == nexists),
+    format_formula(B, Mult, NewB),
+    recreate_formula(A, NewB, Mult, [], Rule, New_Form).
+
+% ----------------------------------------------------
+% Prédicats recreate_formula : prédicat qui permet de formater une formule
+% ----------------------------------------------------
+
+recreate_formula(A, B, _, _, or, Form)   :- Form = A v B.
+recreate_formula(A, B, _, _, nor, Form)  :- Form = not (A v B).
+
+recreate_formula(A, B, _, _,and, Form)  :- Form = A & B.
+recreate_formula(A, B, _, _,nand, Form) :- Form = not (A & B).
+
+recreate_formula(A, B, _, _,imp, Form)  :- Form = A => B.
+recreate_formula(A, B, _, _,nimp, Form) :- Form = not (A => B).
+
+recreate_formula(A, B, Mult, Const, forall, Form) :- Form = forall(A, B, Mult, Const).
+recreate_formula(A, B, Mult, Const, unparsedForall, Form) :- Form = forall(A, B, Mult, Const).
+recreate_formula(A, B, Mult, Const, nforall, Form) :- Form = not forall(A, B, Mult, Const).
+recreate_formula(A, B, _, _, nexists, Form) :- Form = not exists(A, B).
+recreate_formula(A, B, _, _, exists, Form)  :- Form = exists(A, B).
 
 % ----------------------------------------------------
 % Prédicats get_all_constants : prédicat qui permet de récupérer les constantes
@@ -460,6 +712,8 @@ get_constants(Form, Constants, NewConstants) :-
         compound(Form),
         get_constants_in_function(Form, [], InFunctionConstants), !,
         append(Constants, InFunctionConstants, NewConstants)
+        ;
+        \+atomic(Form), \+compound(Form), NewConstants = Constants
     ).
 
 % ----------------------------------------------------
@@ -506,6 +760,113 @@ constant_exists(ConstantsTree, Constant) :-
     \+no_sub_branch(ConstantsTree),
     find_sub_branches(ConstantsTree, B1, B2),
     (constant_exists(B1, Constant);constant_exists(B2, Constant))).
+
+% ----------------------------------------------------
+% Prédicats replace_var_by_const qui est vrai si New_Form est la formule avec Var
+% remplacée par Const
+% ----------------------------------------------------
+
+replace_var_by_const(Form, Var, Const, New_Form) :-
+    (var(Form); compound(Form); atomic(Form)), \+ rule(Form, _, _, _),
+    replace_var_by_const_in_function(Form, Var, Const, New_Form).
+
+replace_var_by_const(Form, Var, Const, New_Form) :-
+    rule(Form, Var2, F, Rule),
+    (Rule == unparsedForall; Rule == forall; Rule == nforall; Rule == exists; Rule == nexists),
+    (
+        same_term(Var2, Var), New_Form = Form
+        ;
+        \+same_term(Var2, Var),
+        (
+            (Rule == forall; Rule == nforall),
+            arg(3, Form, Mult),
+            arg(4, Form, Constants),
+            replace_var_by_const(F, Var, Const, New_F),
+            recreate_formula(Var2, New_F, Mult, Constants, Rule, New_Form)
+            ;
+            Rule \= forall, Rule \= nforall,
+            replace_var_by_const(F, Var, Const, New_F),
+            recreate_formula(Var2, New_F, _, [], Rule, New_Form)
+        )
+    ).
+
+replace_var_by_const(Form, Var, Const, New_Form) :-
+    rule(Form, A, B, Rule),
+    Rule \= unparsedForall, Rule \= forall, Rule \= nforall, Rule \= exists, Rule \= nexists,
+    replace_var_by_const(A, Var, Const, New_A),
+    replace_var_by_const(B, Var, Const, New_B),
+    recreate_formula(New_A, New_B, _, [], Rule, New_Form).
+
+replace_var_by_const_in_function(Form, Var, Const, New_Form) :-
+    compound(Form),
+    compound_name_arguments(Form, Name, Args),
+    replace_var_by_const_in_arguments(Args, Var, Const, New_Args),
+    functor(Form, Name, Arity),
+    set_arguments_in_function(Form, 0, Arity, New_Args),
+    New_Form = Form.
+
+replace_var_by_const_in_function(Form, Var, Const, New_Form) :-
+    (var(Form); atomic(Form)),
+    replace_var_by_const_in_arguments([Form], Var, Const, New_Form).
+
+replace_var_by_const_in_arguments([First| Others], Var, Const, New_Args) :-
+    var(First),
+    same_term(First, Var),
+    replace_var_by_const_in_arguments(Others, Var, Const, A),
+    append([Const], A, New_Args).
+
+replace_var_by_const_in_arguments([], _, _, New_Args) :- New_Args = [].
+
+replace_var_by_const_in_arguments([First| Others], Var, Const, New_Args) :-
+    (atomic(First);var(First), \+same_term(First, Var)),
+    replace_var_by_const_in_arguments(Others, Var, Const, A),
+    append([First], A, New_Args).
+
+replace_var_by_const_in_arguments([First| Others], Var, Const, New_Args) :-
+    compound(First),
+    replace_var_by_const_in_function(First, Var, Const, New_Form),
+    replace_var_by_const_in_arguments(Others, Var, Const, A),
+    append([New_Form], A, New_Args).
+
+set_arguments_in_function(_, Arg, Arity, _) :- Arg == Arity.
+
+set_arguments_in_function(Form, Arg, Arity, [First| Others]) :-
+    New_Arg is Arg + 1,
+    setarg(New_Arg, Form, First),
+    set_arguments_in_function(Form, New_Arg, Arity, Others).
+
+% ----------------------------------------------------
+% Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
+% ----------------------------------------------------
+
+solve(Tree, Mult) :- 
+    clr_echo,
+    format_form_in_tree(Tree, Mult, New_Tree),
+    get_all_constants(New_Tree, Constants),
+    display_tree(Constants),
+    close_tree(New_Tree, New_Tree, Closed_Tree), !,
+    loop(Closed_Tree, Constants, _, Final_Tree, Mult),!,
+
+    set_echo,
+    display_tree(Final_Tree),!.
+
+% ----------------------------------------------------
+% Prédicats loop qui va gérer la boucle principale de l'algorithme
+% ----------------------------------------------------
+
+loop(Tree, _, _, Closed_Tree, _) :- conflict_exists(Tree), Closed_Tree = Tree.
+
+loop(Tree, Constants, Final_Constants, Closed_Tree, Mult) :-
+    get_form(Tree, Tree, Constants, Form, C, Branch, Rule), !,
+    apply(Form, Branch, NewBranch, C, New_C, Mult, Rule),
+    mark_form(Form, NewBranch, MarkedBranch),
+
+    replace_branch(Tree, TempTree, Branch, MarkedBranch),
+    replace_branch(Constants, TempConstants, C, New_C),
+
+    close_tree(TempTree, TempTree, TempTree2), !,
+
+    loop(TempTree2, TempConstants, Final_Constants, Closed_Tree, Mult), !.
 
 % ----------------------------------------------------
 % Prédicats display_tree : prédicat d'affichage de l'arbre
