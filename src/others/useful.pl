@@ -280,8 +280,8 @@ replace_var_by_const_in_function(Form, Var, Const, New_Form) :-
     compound_name_arguments(Form, Name, Args),
     replace_var_by_const_in_arguments(Args, Var, Const, New_Args),
     functor(Form, Name, Arity),
-    set_arguments_in_function(Form, 0, Arity, New_Args),
-    New_Form = Form.
+    duplicate_term(Form, New_Form),
+    set_arguments_in_function(New_Form, 0, Arity, New_Args).
 
 replace_var_by_const_in_function(Form, Var, Const, New_Form) :-
     (var(Form); atomic(Form)),

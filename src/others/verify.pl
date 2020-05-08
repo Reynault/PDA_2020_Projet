@@ -5,30 +5,53 @@
 % Fichier contenant les prédicats de vérification des données fournies par l'utilisateur.
 
 % ----------------------------------------------------
-% Prédicat de vérification des données fournies par l'utilisateur, on vérifie
+% Prédicats de vérification des données fournies par l'utilisateur, on vérifie
 % si elles correspondent bien à des formules propositionnelles
 % ----------------------------------------------------
 
+% Check propositionnal va parcourir l'arbre des formules
+% et vérifier si elles sont valides
 check_propositionnal([]).
 
 check_propositionnal([First| Other]) :-
     \+is_list(First),
-    \+rule(First, _, _, _),
-    atomic(First),
-    check_propositionnal(Other).
-
-check_propositionnal([First| Other]) :-
-    \+is_list(First),
-    rule(First, A, B, Rule),
-    \+is_composed(Rule),
-    check_propositionnal(A),
-    check_propositionnal(B),
+    check_propositionnal_formula(First),
     check_propositionnal(Other).
 
 check_propositionnal([First| Other]) :-
     is_list(First),
     check_propositionnal(First),
     check_propositionnal(Other).
+
+% Ce prédicat va vérifier si une formule est valide
+check_propositionnal_formula(Form) :-
+    rule(Form, A, B, Rule),
+    \+is_composed(Rule),
+    check_propositionnal_formula(A),
+    check_propositionnal_formula(B).
+
+check_propositionnal_formula(Form) :-
+    \+rule(Form, _, _, _),
+    atomic(Form).
+
+% ----------------------------------------------------
+% Prédicats de vérification des données fournies par l'utilisateur, on vérifie
+% si elles correspondent bien à des formules du premier ordre
+% ----------------------------------------------------
+
+% Check propositionnal va parcourir l'arbre des formules
+% et vérifier si elles sont valides
+check_first_order([]).
+
+check_first_order([First| Other]) :-
+    \+is_list(First),
+    check_propositionnal_formula(First),
+    check_first_order(Other).
+
+check_first_order([First| Other]) :-
+    is_list(First),
+    check_first_order(First),
+    check_first_order(Other).
 
 % ----------------------------------------------------
 % Prédicats check_free_var_in_tree rend vrai s'il n'y a pas de variables libres dans l'arbre

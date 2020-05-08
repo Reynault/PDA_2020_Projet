@@ -56,19 +56,39 @@ apply(Form, Branch, New_Branch, Constants, New_Constants, _, exists) :-
     append(Branch, [New_Form], New_Branch),
     append(Constants, [New_Constant], New_Constants).
 
-apply(Form, Branch, New_Branch, Constants, Constants, _, forall) :- 
+apply(Form, Branch, New_Branch, Constants, New_Constants, _, forall) :- 
     no_sub_branch(Branch),!,
     rule(Form, Var, F, forall),
     arg(3, Form, Mult),
     arg(4, Form, Consumed_Constants),
     get_before_sub_branches(Constants, BeforeBranches),
     subtract(BeforeBranches, Consumed_Constants, Constants_To_Consume),
-
-    consume_constants(F, Var, Constants_To_Consume, New_Forms),
-    append(Consumed_Constants, Constants_To_Consume, New_Constants),
-    New_Form = forall(Var, F, Mult, New_Constants),
-    replace_form_in_branch(Branch, Changed_Branch, Form, New_Form),
-    append(Changed_Branch, New_Forms, New_Branch).
+    % Two cases
+    (
+        % When nothing to consume
+        isEmpty(Constants_To_Consume),
+        % Creating one
+        count_constants(Constants, N),
+        generate_constant(Constants, N, New_Constant),
+        % Replacing var by const
+        replace_var_by_const(F, Var, New_Constant, New_Form),
+        % Then adding new for, and new constant
+        append(Consumed_Constants, [New_Constant], New_Constants_For_Form),
+        New_Forall = forall(Var, F, Mult, New_Constants_For_Form),
+        replace_form_in_branch(Branch, Changed_Branch, Form, New_Forall),
+        append(Changed_Branch, [New_Form], New_Branch),
+        append(Constants, [New_Constant], New_Constants)
+        ;
+        % When constants to consume
+        \+isEmpty(Constants_To_Consume),
+        % Consuming constants
+        consume_constants(F, Var, Constants_To_Consume, New_Forms),
+        append(Consumed_Constants, Constants_To_Consume, New_Constants_For_Form),
+        New_Form = forall(Var, F, Mult, New_Constants_For_Form),
+        replace_form_in_branch(Branch, Changed_Branch, Form, New_Form),
+        append(Changed_Branch, New_Forms, New_Branch),
+        New_Constants = Constants
+    ).
 
 apply(Form, Branch, New_Branch, Constants, Constants, Mult, nexists) :- 
     no_sub_branch(Branch),!,
