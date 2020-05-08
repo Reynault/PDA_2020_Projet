@@ -19,7 +19,7 @@ apply(Form, Branch, New_Branch, Constants, New_Constants,_, Form, or) :-
     append(Tmp_Const, [Constants], New_Constants).
 
 apply(Form, Branch, New_Branch, Constants, Constants,_, Form, nor):- 
-    no_sub_branch(Branch),!, rule(Form, F1, F2, Form, nor), append(Branch, [not F1, not F2], New_Branch).
+    no_sub_branch(Branch),!, rule(Form, F1, F2, nor), append(Branch, [not F1, not F2], New_Branch).
 
 apply(Form, Branch, New_Branch, Constants, Constants,_, Form, and):- 
     no_sub_branch(Branch),!, rule(Form, F1, F2, and), append(Branch, [F1, F2], New_Branch).
@@ -93,12 +93,12 @@ apply(Form, Branch, New_Branch, Constants, New_Constants, _, New_Forall, forall)
 apply(Form, Branch, New_Branch, Constants, Constants, Mult, Form, nexists) :- 
     no_sub_branch(Branch),!,
     rule(Form, Var, F, nexists),
-    New_Form = forall(Var, F, Mult, []),
+    New_Form = forall(Var, not F, Mult, []),
     append(Branch, [New_Form], New_Branch).
 
 apply(Form, Branch, New_Branch, Constants, Constants, _, Form, nforall) :- 
     no_sub_branch(Branch),!,
-    rule(Form, Var, F, nforall),
+    rule(Form, Var, not F, nforall),
     New_Form = exists(Var, F),
     append(Branch, [New_Form], New_Branch).
 
