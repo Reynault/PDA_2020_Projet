@@ -41,98 +41,102 @@ check_propositionnal_formula(Form) :-
 
 % Check propositionnal va parcourir l'arbre des formules
 % et vérifier si elles sont valides
-check_first_order([]).
+check_first_order(Tree, Constants) :- 
+    check_first_order(Tree, [], P, [], F),
+    check_intersection(Constants, P),
+    check_intersection(Constants, F).
 
-check_first_order([First| Other]) :-
+check_first_order([], Predicates, Predicates, Functions, Functions).
+
+check_first_order([First| Other], Predicates, New_Pred, Functions, New_Funct) :-
     \+is_list(First),
-    check_propositionnal_formula(First),
-    check_first_order(Other).
+    check_first_order_formula(First, Predicates, Tmp_New_Pred, Functions, Tmp_New_Funct, []),
+    check_first_order(Other, Tmp_New_Pred, New_Pred, Tmp_New_Funct, New_Funct).
 
-check_first_order([First| Other]) :-
+check_first_order([First| Other], Predicates, New_Pred, Functions, New_Funct) :-
     is_list(First),
-    check_first_order(First),
-    check_first_order(Other).
+    check_first_order(First, Predicates, Temp_New_Pred, Functions, Temp_New_Funct),
+    check_first_order(Other, Temp_New_Pred, New_Pred, Temp_New_Funct, New_Funct).
 
-% ----------------------------------------------------
-% Prédicats check_free_var_in_tree rend vrai s'il n'y a pas de variables libres dans l'arbre
-% ----------------------------------------------------
-
-check_free_var_in_tree(Var) :-
-    var(Var), fail.
-
-check_free_var_in_tree(Tree) :- Tree == [].
-
-check_free_var_in_tree([First| Others]) :-
-    \+var(First),
-    \+is_list(First),
-    check_free_var_in_formula(First, []),
-    check_free_var_in_tree(Others).
-
-check_free_var_in_tree([First| Others]) :-
-    is_list(First),
-    find_sub_branches([First| Others], B1, B2),
-    check_free_var_in_tree(B1),
-    check_free_var_in_tree(B2).
-
-% ----------------------------------------------------
-% Prédicats check_free_var_in_formula rend vrai s'il n'y a pas de variables libres dans la formule
-% ----------------------------------------------------
-
-check_free_var_in_formula(Form, Closed_Var) :-
-    var(Form), is_close(Form, Closed_Var).
-
-check_free_var_in_formula(Form, Closed_Var) :-
-    \+var(Form),
-    \+rule(Form, _, _, _),
-    check_free_var_in_function(Form, Closed_Var).
-
-check_free_var_in_formula(Form, Closed_Var) :- 
-    \+var(Form),
-    \+rule(Form, _, _, _),
-    check_free_var_in_function(Form, Closed_Var).
-
-check_free_var_in_formula(Form, Closed_Var) :-
-    \+var(Form),
+check_first_order_formula(Form, Predicates, New_Pred, Functions, New_Funct, Var) :-
     rule(Form, A, B, Rule),
     \+is_composed(Rule),
-    check_free_var_in_formula(A, Closed_Var),
-    check_free_var_in_formula(B, Closed_Var).
+    check_first_order_formula(A, Predicates, Tmp_New_Pred, Functions, Temp_New_Funct, Var),
+    check_first_order_formula(B, Tmp_New_Pred, New_Pred, Temp_New_Funct, New_Funct, Var).
 
-check_free_var_in_formula(Form, Closed_Var) :-
-    \+var(Form),
-    rule(Form, A, B, Rule),
+check_first_order_formula(Form, Predicates, New_Pred, Functions, New_Funct, Var) :-
+    rule(Form, V, F, Rule),
     is_composed(Rule),
-    append([A], Closed_Var, New_Closed_Var),
-    check_free_var_in_formula(B, New_Closed_Var).
+    append([V], Var, New_Var),
+    check_first_order_formula(F, Predicates, New_Pred, Functions, New_Funct, New_Var).
 
+check_first_order_formula(Form, Predicates, New_Pred, Functions, New_Funct, Var) :-
+    \+rule(Form, _, _, _),
+    compound(Form),
+    functor(Form, Name, Arity),
+    F = [Name, Arity],
+    \+already_exists(F, Functions, _),
+    (
+        \+already_exists(F, Predicates, _), append([F], Predicates, Tmp_New_Pred)
+        ;
+        already_exists(F, Predicates, A), A == Arity, Tmp_New_Pred = Predicates
+    ),
+    compound_name_arguments(Form, _, Args),
+    check_first_order_function(Args, Tmp_New_Pred, New_Pred, Functions, New_Funct, Var).
 
-% ----------------------------------------------------
-% Prédicats check_free_var_in_function rend vrai s'il n'y a pas de variables libres dans une fonction
-% ----------------------------------------------------
+check_first_order_function([], Predicates, Predicates, Functions, Functions, _).
 
-check_free_var_in_function(Form, _) :- atomic(Form).
-check_free_var_in_function(Form, Closed_Var) :- var(Form), is_close(Form, Closed_Var).
-check_free_var_in_function(Form, Closed_Var) :- 
-    compound(Form), 
-    compound_name_arguments(Form, _, [F| A]), 
-    check_free_var_in_arguments([F| A], Closed_Var).
+check_first_order_function([First| Others], Predicates, New_Pred, Functions, New_Funct, Var) :-
+    \+compound(First),
+    var(First),
+    is_close(First, Var),
+    check_first_order_function(Others, Predicates, New_Pred, Functions, New_Funct, Var).
 
-% ----------------------------------------------------
-% Prédicats check_free_var_in_arguments rend vrai s'il n'y a pas de variables libres dans une liste
-% d'arguments
-% ----------------------------------------------------
+check_first_order_function([First| Others], Predicates, New_Pred, Functions, New_Funct, Var) :-
+    \+compound(First),
+    atomic(First),
+    check_first_order_function(Others, Predicates, New_Pred, Functions, New_Funct, Var).
 
-check_free_var_in_arguments([], _).
-check_free_var_in_arguments([First| _], Closed_Var) :- var(First), is_close(First, Closed_Var).
-check_free_var_in_arguments([First| Others], Closed_Var) :- atomic(First), check_free_var_in_arguments(Others, Closed_Var).
-check_free_var_in_arguments([First| Others], Closed_Var) :- 
-    compound(First), 
-    check_free_var_in_function(First, Closed_Var), 
-    check_free_var_in_arguments(Others, Closed_Var).
+check_first_order_function([First| Others], Predicates, New_Pred, Functions, New_Funct, Var) :-
+    compound(First),
+    functor(First, Name, Arity),
+    F = [Name, Arity],
+    \+already_exists(F, Predicates, _),
+    (
+        \+already_exists(F, Functions, _), append([F], Functions, Tmp_Functions1)
+        ;
+        already_exists(F, Functions, A), A == Arity, Tmp_Functions1 = Functions
+    ),
+    compound_name_arguments(First, _, Args),
+    check_first_order_function(Args, Predicates, Tmp_New_Pred, Tmp_Functions1, Tmp_Functions2, Var),
+    check_first_order_function(Others, Tmp_New_Pred, New_Pred, Tmp_Functions2, New_Funct, Var).
 
 is_close(V, [First| Others]) :- 
     (
-        V == First
+        same_term(V, First)
         ;
-        V \= First, is_close(V, Others)
+        \+same_term(V, First), is_close(V, Others)
     ).
+
+already_exists([Name, _], [First| _], A) :-
+    First = [N, A],
+    Name == N.
+
+already_exists([Name| Arity], [First| Others], A) :-
+    First = [N, _],
+    Name \= N,
+    already_exists([Name| Arity], Others, A).
+
+
+check_intersection([], _).
+
+check_intersection([First| Other], P) :-
+    \+is_list(First),
+    F = [First, 0],
+    \+already_exists(F, P, _),
+    check_intersection(Other, P).
+
+check_intersection([First| Other], P) :-
+    is_list(First),
+    check_intersection(First, P),
+    check_intersection(Other, P).
