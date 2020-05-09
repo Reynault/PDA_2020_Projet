@@ -73,7 +73,8 @@ check_first_order_formula(Form, Predicates, New_Pred, Functions, New_Funct, Var)
 check_first_order_formula(Form, Predicates, New_Pred, Functions, New_Funct, Var) :-
     \+rule(Form, _, _, _),
     compound(Form),
-    functor(Form, Name, Arity),
+    (RF = not Form; RF = Form),
+    functor(RF, Name, Arity),
     F = [Name, Arity],
     \+already_exists(F, Functions, _),
     (
@@ -81,7 +82,7 @@ check_first_order_formula(Form, Predicates, New_Pred, Functions, New_Funct, Var)
         ;
         already_exists(F, Predicates, A), A == Arity, Tmp_New_Pred = Predicates
     ),
-    compound_name_arguments(Form, _, Args),
+    compound_name_arguments(RF, _, Args),
     check_first_order_function(Args, Tmp_New_Pred, New_Pred, Functions, New_Funct, Var).
 
 check_first_order_function([], Predicates, Predicates, Functions, Functions, _).

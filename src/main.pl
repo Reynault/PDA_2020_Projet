@@ -101,7 +101,7 @@ close_tree(TreeBeginning, _, ClosedTree) :-
 close_tree(TreeBeginning, [First| Others], ClosedTree) :-
     \+is_list(First),
     close_conflicts(TreeBeginning, Others, First, ClosedTreeForFirst),
-    get_position_in_tree(ClosedTreeForFirst, First, [_| OthersInClosedTree]),
+    get_position_in_tree(ClosedTreeForFirst, First, Others, [_| OthersInClosedTree]),
     close_tree(ClosedTreeForFirst, OthersInClosedTree, ClosedTree),
     echo("3").
 

@@ -53,13 +53,36 @@ get_before_sub_branches([First| Others], BeforeBranches) :-
 % Prédicat get_position_in_tree: récupère la position de Form dans l'arbre donné
 % ----------------------------------------------------
 
-get_position_in_tree([First| Others], Form, Position) :-
+get_position_in_tree([First| Others], Form, After, Position) :-
     Form == First,
+    check_after_form(Others, After),
     Position = [First| Others].
 
-get_position_in_tree([First| Others], Form, Position) :-
-    \+Form == First,
-    get_position_in_tree(Others, Form, Position).
+get_position_in_tree([First| Others], Form, After, Position) :-
+    (\+Form == First ; Form == First, \+check_after_form(Others, After)),
+    get_position_in_tree(Others, Form, After, Position).
+
+
+
+check_after_form([], []).
+
+check_after_form([F| O], [F1| O1]) :-
+    F == conflict,
+    check_after_form(O, [F1| O1]).
+
+check_after_form([F| O], [F1| O1]) :-
+    F1 == conflict,
+    check_after_form([F| O], O1).
+
+check_after_form([F| O], [F1| O1]) :-
+    F == F1,
+    check_after_form(O, O1).
+
+check_after_form([F| O], [F1| O1]) :-
+    is_list(F),
+    is_list(F1),
+    check_after_form(F, F1),
+    check_after_form(O, O1).
 
 % ----------------------------------------------------
 % Prédicats remove:
