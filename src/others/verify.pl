@@ -32,7 +32,7 @@ check_propositionnal_formula(Form) :-
 
 check_propositionnal_formula(Form) :-
     \+rule(Form, _, _, _),
-    atomic(Form).
+    (atomic(Form); Form = not F, atomic(F)).
 
 % ----------------------------------------------------
 % Prédicats de vérification des données fournies par l'utilisateur, on vérifie

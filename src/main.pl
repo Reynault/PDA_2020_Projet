@@ -30,16 +30,36 @@
 % Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
 % ----------------------------------------------------
 
-solve(Tree, Mult) :- 
+solve(Tree, propositionnal) :- 
+    clr_echo,
+    check_propositionnal(Tree),
+    close_tree(Tree, Tree, Closed_Tree), !,
+    loop(Closed_Tree, [], _, Final_Tree, 0),!,
+
+    set_echo,
+    display_tree(Final_Tree),!.
+
+solve(Tree, Mult, first_order) :- 
     clr_echo,
     format_form_in_tree(Tree, Mult, New_Tree),
     get_all_constants(New_Tree, Constants),
-    display_tree(Constants),
+    check_first_order(New_Tree, Constants),
     close_tree(New_Tree, New_Tree, Closed_Tree), !,
     loop(Closed_Tree, Constants, _, Final_Tree, Mult),!,
 
     set_echo,
     display_tree(Final_Tree),!.
+
+%solve(Tree, Mult) :- 
+%    clr_echo,
+%    format_form_in_tree(Tree, Mult, New_Tree),
+%    get_all_constants(New_Tree, Constants),
+%    display_tree(Constants),
+%    close_tree(New_Tree, New_Tree, Closed_Tree), !,
+%    loop(Closed_Tree, Constants, _, Final_Tree, Mult),!,
+%
+%    set_echo,
+%    display_tree(Final_Tree),!.
 
 % ----------------------------------------------------
 % Prédicats loop qui va gérer la boucle principale de l'algorithme
