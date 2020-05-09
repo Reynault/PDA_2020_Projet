@@ -2,29 +2,17 @@
 % TP - PDA - Groupe : Brandon Hornbeck, Reynault Sies
 % ----------------------------------------------------
 
+% ----------------------------------------------------
+% Fichier principal permettant de lancer le programme
+% (Voir le fichier README.md pour plus de détails sur l'execution du programme)
+% ----------------------------------------------------
+
 :- include('others/conf.pl').
 :- include('others/operators.pl').
 :- include('others/useful.pl').
 :- include('others/rules.pl').
 :- include('others/apply.pl').
 :- include('others/verify.pl').
-
-% ----------------------------------------------------
-% Paramètres utilisés:
-%
-%   - tree : Tableau qui correspond aux branches réalisées 
-%     C'est un tableau qui contient l'arbre sous la forme de formules et de tableaux.
-%     Sachant que lorsqu'un conflit est détécté, le premier élément du tableau correspondant
-%     à la branche est la constante conflict. 
-%     Avec le tableau principal qui correspond à la branche principale.
-%
-%   - Form : Une formule du système 
-%     (une formule simple)
-%
-% Notation utilisée:
-%   - conflict  : constante qui tagge si une branche a un conflit
-%   - marked    : opérateur qui permet de noter une formule déjà utilisée
-% ----------------------------------------------------
 
 % ----------------------------------------------------
 % Prédicats solve: Permet de lancer l'algorithme des tableaux sémantiques
