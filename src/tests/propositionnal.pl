@@ -8,7 +8,8 @@ solve([d, not a, not(d & (a=>b))],propositionnal).
 solve([not d, not(a v not d)],propositionnal).
 solve([r, p => (q & r), q => (not r), q],propositionnal).
 solve([not b, not a, (a v b) v (a v b)],propositionnal).
-
+solve([((not (a => b)) & (a => b))], propositionnal).
+solve([not b, not a, (a v a) v (b v b)],propositionnal).
 % False
 
 solve([a => b, b => c, not (a => d)],propositionnal).
